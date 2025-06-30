@@ -9,12 +9,18 @@ import json
 from datetime import datetime, timedelta
 import random
 
+# 서비스 모듈 import
+from .services.data import HEALTH_OPTIONS, EXERCISE_DATA, ROUTINE_DATA
+from .services.youtube_service import get_youtube_music, get_workout_videos
+from .services.nutrition_service import analyze_food_simple, get_nutrition_mock_data
+from .services.social_service import get_social_posts, create_post, like_post_action
+from .services.health_consultation import get_health_consultation
+from .models import UserProfile
+
+# 기존 기본 API들
 @api_view(['GET'])
 def test_api(request):
-    return Response({
-        'message': 'API is working!',
-        'method': request.method,
-    })
+    return Response({'message': 'API is working!', 'method': request.method})
 
 @api_view(['GET'])
 def guest_profile(request):
@@ -28,9 +34,7 @@ def guest_profile(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def auth_csrf(request):
-    return Response({
-        'csrfToken': get_token(request),
-    })
+    return Response({'csrfToken': get_token(request)})
 
 @api_view(['POST', 'OPTIONS'])
 @permission_classes([AllowAny])
@@ -70,7 +74,6 @@ def auth_login(request):
 def auth_logout(request):
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
-    
     logout(request)
     return Response({'success': True})
 
@@ -85,6 +88,16 @@ def auth_register(request):
         username = data.get('username')
         email = data.get('email')
         password = data.get('password')
+        
+        # 추가 프로필 정보
+        birth_date = data.get('birth_date')
+        gender = data.get('gender')
+        height = data.get('height')
+        weight = data.get('weight')
+        diseases = data.get('diseases', [])
+        health_conditions = data.get('health_conditions', [])
+        allergies = data.get('allergies', [])
+        fitness_level = data.get('fitness_level', 'beginner')
         
         if not username or not email or not password:
             return Response({
@@ -104,11 +117,28 @@ def auth_register(request):
                 'error': 'Email already exists'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        user = User.objects.create_user(
-            username=username,
-            email=email,
-            password=password
-        )
+        # 사용자 생성
+        user = User.objects.create_user(username=username, email=email, password=password)
+        
+        # 프로필 생성
+        profile_data = {
+            'user': user,
+            'fitness_level': fitness_level,
+            'diseases': diseases,
+            'health_conditions': health_conditions,
+            'allergies': allergies,
+        }
+        
+        if birth_date:
+            profile_data['birth_date'] = birth_date
+        if gender:
+            profile_data['gender'] = gender
+        if height:
+            profile_data['height'] = float(height)
+        if weight:
+            profile_data['weight'] = float(weight)
+            
+        UserProfile.objects.create(**profile_data)
         
         return Response({
             'success': True,
@@ -124,12 +154,19 @@ def auth_register(request):
             'error': str(e)
         }, status=status.HTTP_400_BAD_REQUEST)
 
+# 건강 선택지 API
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([AllowAny])
+def health_options(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    return Response(HEALTH_OPTIONS)
+
 @api_view(['GET', 'OPTIONS'])
 @permission_classes([AllowAny])
 def api_health(request):
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
-    
     return Response({
         'status': 'healthy',
         'service': 'api',
@@ -160,29 +197,7 @@ def guest_daily_nutrition(request, date):
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
     
-    # Generate mock nutrition data
-    meals = ['breakfast', 'lunch', 'dinner', 'snack']
-    nutrition_data = {
-        'date': date,
-        'total_calories': random.randint(1800, 2200),
-        'protein': random.randint(60, 90),
-        'carbs': random.randint(200, 300),
-        'fat': random.randint(50, 80),
-        'fiber': random.randint(20, 35),
-        'meals': []
-    }
-    
-    for meal in meals:
-        if random.random() > 0.2:  # 80% chance of having a meal
-            nutrition_data['meals'].append({
-                'type': meal,
-                'calories': random.randint(300, 600),
-                'protein': random.randint(15, 30),
-                'carbs': random.randint(40, 80),
-                'fat': random.randint(10, 25),
-                'foods': [f'Sample {meal} food {i+1}' for i in range(random.randint(2, 4))]
-            })
-    
+    nutrition_data = get_nutrition_mock_data(date)
     return Response(nutrition_data)
 
 @api_view(['GET', 'OPTIONS'])
@@ -191,11 +206,9 @@ def guest_nutrition_statistics(request):
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
     
-    # Get date range from query params
     start_date = request.GET.get('start_date', (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d'))
     end_date = request.GET.get('end_date', datetime.now().strftime('%Y-%m-%d'))
     
-    # Generate weekly statistics
     stats = {
         'period': f'{start_date} to {end_date}',
         'average_daily_calories': random.randint(1900, 2100),
@@ -223,14 +236,12 @@ def guest_workout_logs(request):
         return Response(status=status.HTTP_200_OK)
     
     limit = int(request.GET.get('limit', 7))
-    
-    # Generate mock workout data
     workout_types = ['Cardio', 'Strength Training', 'Yoga', 'HIIT', 'Swimming', 'Running']
     logs = []
     
     for i in range(limit):
         date = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
-        if random.random() > 0.3:  # 70% chance of workout
+        if random.random() > 0.3:
             logs.append({
                 'id': f'workout-{i}',
                 'date': date,
@@ -241,10 +252,7 @@ def guest_workout_logs(request):
                 'notes': f'Great {random.choice(workout_types).lower()} session!'
             })
     
-    return Response({
-        'count': len(logs),
-        'results': logs
-    })
+    return Response({'count': len(logs), 'results': logs})
 
 @api_view(['GET', 'OPTIONS'])
 @permission_classes([AllowAny])
@@ -279,3 +287,149 @@ def guest_recommendations_daily(request):
     }
     
     return Response(recommendations)
+
+# 새로운 API 엔드포인트들
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([AllowAny])
+def exercise_list(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    category = request.GET.get('category', '')
+    difficulty = request.GET.get('difficulty', '')
+    
+    exercises = EXERCISE_DATA.copy()
+    
+    if category:
+        exercises = [e for e in exercises if e['category'] == category]
+    if difficulty:
+        exercises = [e for e in exercises if e['difficulty'] == difficulty]
+        
+    return Response({'count': len(exercises), 'results': exercises})
+
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([AllowAny])
+def workout_routines(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    return Response({'count': len(ROUTINE_DATA), 'results': ROUTINE_DATA})
+
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([AllowAny])
+def youtube_music_recommendations(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    workout_type = request.GET.get('workout_type', 'general')
+    result = get_youtube_music(workout_type)
+    
+    if 'error' in result:
+        return Response(result, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+    return Response(result)
+
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([AllowAny])
+def workout_videos(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    exercise_type = request.GET.get('type', 'general')
+    difficulty = request.GET.get('difficulty', 'beginner')
+    result = get_workout_videos(exercise_type, difficulty)
+    
+    if 'error' in result:
+        return Response(result, status=status.HTTP_502_BAD_GATEWAY)
+    return Response(result)
+
+@api_view(['POST', 'OPTIONS'])
+@permission_classes([AllowAny])
+def analyze_nutrition(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    try:
+        data = json.loads(request.body)
+        food_description = data.get('food_description', '')
+        
+        analysis = analyze_food_simple(food_description)
+        return Response(analysis)
+        
+    except Exception as e:
+        return Response({
+            'error': f'Nutrition analysis error: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET', 'POST', 'OPTIONS'])
+@permission_classes([AllowAny])
+def nutrition_tracking(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    if request.method == 'GET':
+        date = request.GET.get('date', datetime.now().strftime('%Y-%m-%d'))
+        nutrition_data = get_nutrition_mock_data(date)
+        return Response(nutrition_data)
+    
+    elif request.method == 'POST':
+        data = json.loads(request.body)
+        nutrition_info = {
+            'food_name': data.get('food_name'),
+            'quantity': data.get('quantity'),
+            'meal_type': data.get('meal_type'),
+            'calories': random.randint(100, 500),
+            'protein': random.randint(5, 30),
+            'carbs': random.randint(10, 60),
+            'fat': random.randint(2, 25),
+            'fiber': random.randint(1, 10),
+            'added_at': datetime.now().isoformat()
+        }
+        
+        return Response({'success': True, 'nutrition_info': nutrition_info})
+
+@api_view(['GET', 'POST', 'OPTIONS'])
+@permission_classes([AllowAny])
+def social_feed(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    if request.method == 'GET':
+        posts = get_social_posts()
+        return Response({'count': len(posts), 'results': posts})
+    
+    elif request.method == 'POST':
+        data = json.loads(request.body)
+        new_post = create_post(
+            data.get('content'),
+            data.get('workout_session_id'),
+            data.get('image_url')
+        )
+        return Response({'success': True, 'post': new_post})
+
+@api_view(['POST', 'OPTIONS'])
+@permission_classes([AllowAny])
+def like_post(request, post_id):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    result = like_post_action(post_id)
+    return Response(result)
+
+@api_view(['POST', 'OPTIONS'])
+@permission_classes([AllowAny])
+def health_consultation(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    try:
+        data = json.loads(request.body)
+        question = data.get('question', '')
+        category = data.get('category', 'general')
+        user_profile = data.get('user_profile', {})
+        
+        consultation = get_health_consultation(question, category, user_profile)
+        return Response(consultation)
+        
+    except Exception as e:
+        return Response({
+            'error': f'Health consultation error: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
