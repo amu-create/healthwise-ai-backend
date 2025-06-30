@@ -11,4 +11,11 @@ urlpatterns = [
     
     # Health check endpoint
     path('health/', views.api_health, name='api_health'),
+    
+    # Guest endpoints
+    path('guest/fitness-profile/', views.guest_fitness_profile, name='guest_fitness_profile'),
+    path('guest/daily-nutrition/<str:date>/', views.guest_daily_nutrition, name='guest_daily_nutrition'),
+    path('guest/nutrition-statistics/', views.guest_nutrition_statistics, name='guest_nutrition_statistics'),
+    path('guest/workout-logs/', views.guest_workout_logs, name='guest_workout_logs'),
+    path('guest/recommendations/daily/', views.guest_recommendations_daily, name='guest_recommendations_daily'),
 ]
