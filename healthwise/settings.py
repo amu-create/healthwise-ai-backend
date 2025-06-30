@@ -113,6 +113,9 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Custom User Model
+AUTH_USER_MODEL = 'auth.User'
+
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
     "https://healthwiseaipro.netlify.app",

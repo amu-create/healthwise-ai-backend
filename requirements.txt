@@ -30,15 +30,13 @@ celery==5.3.4
 requests==2.31.0
 python-dotenv==1.0.0
 
-# OpenAI
+# AI/ML 라이브러리 - Railway 배포용 경량화
 openai==1.12.0
-
-# Google API
 google-generativeai==0.3.2
-
-# FAISS (벡터 DB)
 faiss-cpu==1.7.4
-
-# 언어 처리
 langchain==0.1.7
 langchain-community==0.0.20
+
+# 필수 의존성
+numpy==1.24.3
+scikit-learn==1.3.2
