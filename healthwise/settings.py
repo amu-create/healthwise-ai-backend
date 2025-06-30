@@ -119,25 +119,38 @@ MEDIA_ROOT = os.environ.get('MEDIA_ROOT', BASE_DIR / 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# CORS settings
-CORS_ALLOWED_ORIGINS = os.environ.get(
+# ===== CORS 설정 수정 =====
+# 환경변수에서 CORS 허용 도메인 읽기
+cors_origins_env = os.environ.get(
     'CORS_ALLOWED_ORIGINS',
-    'https://healthwiseaipro.netlify.app,http://localhost:3000'
-).split(',')
+    'https://healthwiseaipro.netlify.app,http://localhost:3000,http://localhost:5173'
+)
 
-# Add explicit allowed origins
-CORS_ALLOWED_ORIGINS = [
+# 환경변수 값을 리스트로 변환 (하드코딩 제거)
+CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins_env.split(',') if origin.strip()]
+
+# 필수 도메인 추가 (중복 제거)
+essential_origins = [
     'https://healthwiseaipro.netlify.app',
+    'https://healthwise-ai.netlify.app',
     'http://localhost:3000',
     'http://localhost:5173',
 ]
 
+for origin in essential_origins:
+    if origin not in CORS_ALLOWED_ORIGINS:
+        CORS_ALLOWED_ORIGINS.append(origin)
+
+print(f"[CORS] Allowed Origins: {CORS_ALLOWED_ORIGINS}")
+
 # CORS settings for development
 if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
+    print("[CORS] DEBUG=True: Allowing all origins")
 else:
     # For production, use specific origins
     CORS_ALLOW_ALL_ORIGINS = False
+    print(f"[CORS] Production mode: Using {len(CORS_ALLOWED_ORIGINS)} specific origins")
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = [
@@ -148,6 +161,8 @@ CORS_ALLOW_METHODS = [
     'POST',
     'PUT',
 ]
+
+# 커스텀 헤더 추가
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
@@ -158,6 +173,9 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+    'x-guest-id',      # 게스트 ID 헤더
+    'x-auth-user',     # 인증 사용자 헤더
+    'accept-language', # 언어 설정 헤더
 ]
 
 # Static files configuration
