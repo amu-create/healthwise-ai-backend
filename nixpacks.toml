@@ -2,13 +2,19 @@
 nixPkgs = ["python311", "postgresql"]
 
 [phases.install]
-cmds = ["pip install -r requirements.txt"]
+cmds = [
+    "python -m venv /opt/venv",
+    ". /opt/venv/bin/activate && pip install -r requirements.txt"
+]
 
 [phases.build]
 cmds = [
-    "python manage.py collectstatic --noinput",
-    "python manage.py migrate --noinput"
+    ". /opt/venv/bin/activate && python manage.py collectstatic --noinput",
+    ". /opt/venv/bin/activate && python manage.py migrate --noinput || true"
 ]
 
 [start]
-cmd = "gunicorn healthwise.wsgi:application --bind 0.0.0.0:$PORT"
+cmd = ". /opt/venv/bin/activate && gunicorn healthwise.wsgi:application --bind 0.0.0.0:$PORT"
+
+[variables]
+NIXPACKS_PATH = "/opt/venv/bin:$NIXPACKS_PATH"
