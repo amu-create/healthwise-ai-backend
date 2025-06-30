@@ -1,40 +1,44 @@
-# HealthWise AI Backend Requirements
+# Core
 Django==4.2.7
 djangorestframework==3.14.0
 django-cors-headers==4.3.1
+gunicorn==21.2.0
+whitenoise==6.6.0
+dj-database-url==2.1.0
+python-decouple==3.8
+
+# Database
+psycopg2-binary==2.9.9
+
+# Channels & WebSocket
 channels==4.0.0
 channels-redis==4.1.0
 daphne==4.0.0
 redis==5.0.1
-psycopg2-binary==2.9.9
-Pillow==10.1.0
-python-decouple==3.8
-celery==5.3.4
-django-celery-beat==2.5.0
-django-filter==23.5
+
+# API Documentation
 drf-spectacular==0.27.0
-gunicorn==21.2.0
-whitenoise==6.6.0
-boto3==1.34.14
-django-storages==1.14.2
-python-jose==3.3.0
-cryptography==41.0.7
+django-filter==23.5
+
+# Media & Files
+Pillow==10.1.0
+
+# Celery
+celery==5.3.4
+
+# Additional
 requests==2.31.0
-numpy==1.26.2
-opencv-python-headless==4.8.1.78
-mediapipe==0.10.9
-tensorflow==2.15.0
-scikit-learn==1.3.2
-pandas==2.1.4
-matplotlib==3.8.2
-seaborn==0.13.0
 python-dotenv==1.0.0
-dj-database-url==2.1.0
-django-extensions==3.2.3
-django-debug-toolbar==4.2.0
-pytest==7.4.3
-pytest-django==4.7.0
-coverage==7.3.3
-black==23.12.1
-flake8==7.0.0
-pre-commit==3.6.0
+
+# OpenAI
+openai==1.12.0
+
+# Google API
+google-generativeai==0.3.2
+
+# FAISS (벡터 DB)
+faiss-cpu==1.7.4
+
+# 언어 처리
+langchain==0.1.7
+langchain-community==0.0.20
