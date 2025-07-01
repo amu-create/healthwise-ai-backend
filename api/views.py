@@ -43,9 +43,20 @@ def auth_login(request):
         return Response(status=status.HTTP_200_OK)
     
     try:
-        data = json.loads(request.body) if request.body else {}
-        username = data.get('username')
-        password = data.get('password')
+        # request.data를 사용하여 JSON 파싱
+        username = request.data.get('username')
+        password = request.data.get('password')
+        
+        # 디버깅을 위한 로그
+        print(f"Login attempt - username: {username}")
+        
+        # 이메일로도 로그인 시도
+        if '@' in username:
+            try:
+                user_obj = User.objects.get(email=username)
+                username = user_obj.username
+            except User.DoesNotExist:
+                pass
         
         user = authenticate(request, username=username, password=password)
         if user is not None:
@@ -56,7 +67,10 @@ def auth_login(request):
                     'id': user.id,
                     'username': user.username,
                     'email': user.email,
-                }
+                    'profile_image': None  # 프론트엔드가 기대하는 필드
+                },
+                'access': 'dummy-token',  # 프론트엔드가 토큰을 기대할 수 있음
+                'refresh': 'dummy-refresh-token'
             })
         else:
             return Response({
@@ -64,6 +78,7 @@ def auth_login(request):
                 'error': 'Invalid credentials'
             }, status=status.HTTP_401_UNAUTHORIZED)
     except Exception as e:
+        print(f"Login error: {str(e)}")
         return Response({
             'success': False,
             'error': str(e)
@@ -140,13 +155,19 @@ def auth_register(request):
             
         UserProfile.objects.create(**profile_data)
         
+        # 자동 로그인
+        login(request, user)
+        
         return Response({
             'success': True,
             'user': {
                 'id': user.id,
                 'username': user.username,
                 'email': user.email,
-            }
+                'profile_image': None
+            },
+            'access': 'dummy-token',
+            'refresh': 'dummy-refresh-token'
         }, status=status.HTTP_201_CREATED)
     except Exception as e:
         return Response({
