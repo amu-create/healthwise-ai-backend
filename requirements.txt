@@ -25,6 +25,9 @@ tiktoken==0.5.2
 beautifulsoup4==4.12.3
 lxml==5.0.0
 
+# HuggingFace Embeddings (CPU only for Railway)
+sentence-transformers==2.2.2
+
 # Celery 추가 (비동기 작업)
 celery==5.3.4
 django-celery-beat==2.5.0

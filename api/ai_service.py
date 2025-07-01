@@ -12,8 +12,14 @@ from openai import OpenAI
 import json
 from datetime import datetime, timedelta, date
 import hashlib
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
+# Railway 배포를 위해 무거운 라이브러리 조건부 import
+try:
+    from langchain_community.embeddings import HuggingFaceEmbeddings
+    from langchain_community.vectorstores import FAISS
+    VECTORSTORE_AVAILABLE = True
+except ImportError:
+    logger.warning("VectorStore libraries not available. Running without embeddings.")
+    VECTORSTORE_AVAILABLE = False
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -44,7 +50,7 @@ class HealthAIChatbot:
             }
             
             # 벡터스토어 초기화 (필요시)
-            if not HealthAIChatbot._embeddings:
+            if VECTORSTORE_AVAILABLE and not HealthAIChatbot._embeddings:
                 self._initialize_vectorstore()
             
             logger.info("HealthAIChatbot initialized successfully")
@@ -160,7 +166,7 @@ class HealthAIChatbot:
             
             # 3. 벡터스토어에서 관련 지식 검색
             relevant_knowledge = []
-            if self._vectorstore and category:
+            if VECTORSTORE_AVAILABLE and self._vectorstore and category:
                 relevant_knowledge = self._search_knowledge(question, category)
             
             # 4. 시스템 프롬프트 생성
@@ -206,7 +212,7 @@ class HealthAIChatbot:
     def _search_knowledge(self, query: str, category: str) -> List[Dict]:
         """벡터스토어에서 관련 지식 검색"""
         try:
-            if not self._vectorstore:
+            if not VECTORSTORE_AVAILABLE or not self._vectorstore:
                 return []
             
             # 카테고리 기반 검색
