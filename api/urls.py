@@ -30,6 +30,7 @@ urlpatterns = [
     
     # 🎵 유튜브 음악 추천 API
     path('youtube/music/', views.youtube_music_recommendations, name='youtube_music'),
+    path('music/youtube-search/', views.youtube_search, name='youtube_search'),
     
     # 🥗 영양 관련 API
     path('nutrition/analyze/', views.analyze_nutrition, name='analyze_nutrition'),

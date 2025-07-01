@@ -288,6 +288,47 @@ def guest_recommendations_daily(request):
     
     return Response(recommendations)
 
+@api_view(['POST', 'OPTIONS'])
+@permission_classes([AllowAny])
+def youtube_search(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    try:
+        data = json.loads(request.body) if request.body else {}
+        query = data.get('query', '')
+        max_results = data.get('maxResults', 5)
+        
+        # YouTube API를 통한 검색은 get_workout_videos 함수를 활용
+        result = get_workout_videos(query, 'all')
+        
+        if 'error' in result:
+            return Response(result, status=status.HTTP_502_BAD_GATEWAY)
+            
+        # 결과를 프론트엔드가 기대하는 형식으로 변환
+        items = result.get('items', [])
+        formatted_items = []
+        for item in items[:max_results]:
+            formatted_items.append({
+                'id': {'videoId': item['id']},
+                'snippet': {
+                    'title': item['title'],
+                    'channelTitle': item.get('channel', 'Unknown'),
+                    'thumbnails': {
+                        'medium': {
+                            'url': item.get('thumbnail', '')
+                        }
+                    }
+                }
+            })
+        
+        return Response({'items': formatted_items})
+        
+    except Exception as e:
+        return Response({
+            'error': f'YouTube search error: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 # 새로운 API 엔드포인트들
 @api_view(['GET', 'OPTIONS'])
 @permission_classes([AllowAny])
@@ -314,14 +355,22 @@ def workout_routines(request):
         return Response(status=status.HTTP_200_OK)
     return Response({'count': len(ROUTINE_DATA), 'results': ROUTINE_DATA})
 
-@api_view(['GET', 'OPTIONS'])
+@api_view(['GET', 'POST', 'OPTIONS'])
 @permission_classes([AllowAny])
 def youtube_music_recommendations(request):
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
     
-    workout_type = request.GET.get('workout_type', 'general')
-    result = get_youtube_music(workout_type)
+    if request.method == 'GET':
+        workout_type = request.GET.get('workout_type', 'general')
+        result = get_youtube_music(workout_type)
+    elif request.method == 'POST':
+        data = json.loads(request.body) if request.body else {}
+        exercise = data.get('exercise', 'general')
+        mood = data.get('mood', 'energetic')
+        # 운동과 기분을 조합하여 workout_type 생성
+        workout_type = f"{exercise}_{mood}"
+        result = get_youtube_music(workout_type)
     
     if 'error' in result:
         return Response(result, status=status.HTTP_503_SERVICE_UNAVAILABLE)
