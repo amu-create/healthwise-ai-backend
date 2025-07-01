@@ -1283,7 +1283,7 @@ def ai_workout(request):
             # 그래도 부족하면 전체 운동에서 추가
             if len(selected_exercises) < num_exercises:
                 all_exercises = list(VALID_EXERCISES_WITH_GIF.keys())
-                import random
+                # random은 이미 import되어 있음 (파일 상단)
                 random.shuffle(all_exercises)
                 for ex in all_exercises:
                     if ex not in used_exercises and len(selected_exercises) < num_exercises:
