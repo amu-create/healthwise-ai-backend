@@ -8,10 +8,13 @@ from typing import Dict, List, Optional
 from django.conf import settings
 from django.utils import timezone
 from django.core.cache import cache
+import openai
 from openai import OpenAI
 import json
 from datetime import datetime, timedelta, date
 import hashlib
+logger = logging.getLogger(__name__)
+
 # Railway 배포를 위해 무거운 라이브러리 조건부 import
 try:
     from langchain_community.embeddings import HuggingFaceEmbeddings
@@ -21,8 +24,6 @@ except ImportError:
     logger.warning("VectorStore libraries not available. Running without embeddings.")
     VECTORSTORE_AVAILABLE = False
 import numpy as np
-
-logger = logging.getLogger(__name__)
 
 class HealthAIChatbot:
     """헬스케어 AI 챗봇 - Railway 배포용 경량화 버전"""
@@ -37,12 +38,36 @@ class HealthAIChatbot:
             if not api_key:
                 raise ValueError("OpenAI API key not found")
                 
-            # OpenAI 클라이언트 생성 시 proxy 설정 제거
-            self.client = OpenAI(
-                api_key=api_key,
-                # proxy 관련 설정을 명시적으로 비활성화
-                http_client=None
-            )
+            # OpenAI 클라이언트 생성
+            try:
+                # Railway 환경에서 proxy 문제 해결
+                import httpx
+                
+                # proxy를 사용하지 않는 httpx 클라이언트 생성
+                http_client = httpx.Client(
+                    proxies=None,  # proxy 비활성화
+                    timeout=30.0
+                )
+                
+                self.client = OpenAI(
+                    api_key=api_key,
+                    http_client=http_client
+                )
+            except Exception as e:
+                # 대체 방법: 환경 변수 사용
+                logger.warning(f"Using fallback OpenAI initialization: {str(e)}")
+                os.environ['OPENAI_API_KEY'] = api_key
+                # proxy 설정 제거
+                if 'HTTP_PROXY' in os.environ:
+                    del os.environ['HTTP_PROXY']
+                if 'HTTPS_PROXY' in os.environ:
+                    del os.environ['HTTPS_PROXY']
+                if 'http_proxy' in os.environ:
+                    del os.environ['http_proxy']
+                if 'https_proxy' in os.environ:
+                    del os.environ['https_proxy']
+                
+                self.client = OpenAI()
             
             # 캐시 설정
             self.cache_timeout = 3600  # 1시간
