@@ -181,6 +181,7 @@ def guest_fitness_profile(request):
         return Response(status=status.HTTP_200_OK)
     
     return Response({
+        'birth_date': '1990-01-01',  # 예시 생년월일
         'height': 175,
         'weight': 70,
         'bmi': 22.9,
