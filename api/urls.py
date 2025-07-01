@@ -57,6 +57,7 @@ urlpatterns = [
     path('user-level/', views.user_level, name='user_level'),
     
     # 채팅봇 엔드포인트
+    path('chatbot/', views.chatbot, name='chatbot'),  # 메인 채팅봇 API
     path('chatbot/status/', views.chatbot_status, name='chatbot_status'),
     path('chatbot/sessions/', views.chatbot_sessions, name='chatbot_sessions'),
     path('chatbot/sessions/active/', views.chatbot_sessions_active, name='chatbot_sessions_active'),

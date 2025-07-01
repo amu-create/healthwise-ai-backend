@@ -204,8 +204,43 @@ def guest_fitness_profile(request):
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
     
+    # 인증된 사용자의 경우 실제 프로필 반환
+    if request.user.is_authenticated:
+        try:
+            profile = UserProfile.objects.get(user=request.user)
+            from datetime import date
+            today = date.today()
+            age = today.year - profile.birth_date.year - ((today.month, today.day) < (profile.birth_date.month, profile.birth_date.day)) if profile.birth_date else 30
+            
+            # BMI 계산
+            bmi = None
+            if profile.height and profile.weight:
+                height_m = profile.height / 100
+                bmi = profile.weight / (height_m ** 2)
+            
+            return Response({
+                'age': age,
+                'birth_date': profile.birth_date.isoformat() if profile.birth_date else None,
+                'gender': profile.gender,
+                'height': profile.height,
+                'weight': profile.weight,
+                'bmi': round(bmi, 1) if bmi else None,
+                'body_fat_percentage': 18.5,  # 예시값
+                'muscle_mass': 57.0,  # 예시값
+                'fitness_level': profile.fitness_level,
+                'health_score': 82,  # 예시값
+                'diseases': profile.diseases,
+                'allergies': profile.allergies,
+                'last_updated': datetime.now().isoformat()
+            })
+        except UserProfile.DoesNotExist:
+            pass
+    
+    # 게스트 사용자의 경우 기본값 반환
     return Response({
-        'birth_date': '1990-01-01',  # 예시 생년월일
+        'age': 30,
+        'birth_date': '1994-01-01',  # 예시 생년월일
+        'gender': 'male',
         'height': 175,
         'weight': 70,
         'bmi': 22.9,
@@ -213,6 +248,8 @@ def guest_fitness_profile(request):
         'muscle_mass': 57.0,
         'fitness_level': 'intermediate',
         'health_score': 82,
+        'diseases': [],
+        'allergies': [],
         'last_updated': datetime.now().isoformat()
     })
 
@@ -533,10 +570,7 @@ def health_consultation(request):
 @api_view(['GET', 'OPTIONS'])
 @permission_classes([AllowAny])  # TODO: 나중에 IsAuthenticated로 변경
 def fitness_profile(request):
-    if request.method == 'OPTIONS':
-        return Response(status=status.HTTP_200_OK)
-    
-    # 게스트 프로필과 동일한 데이터 반환 (일단)
+    # guest_fitness_profile과 동일한 로직 사용
     return guest_fitness_profile(request)
 
 @api_view(['GET', 'OPTIONS'])
@@ -627,18 +661,53 @@ def chatbot_status(request):
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
     
+    # 사용자 컨텍스트 수집
+    user_context = {}
+    has_profile = False
+    
+    if request.user.is_authenticated:
+        try:
+            profile = UserProfile.objects.get(user=request.user)
+            from datetime import date
+            today = date.today()
+            age = today.year - profile.birth_date.year - ((today.month, today.day) < (profile.birth_date.month, profile.birth_date.day)) if profile.birth_date else 30
+            
+            user_context = {
+                'age': age,
+                'gender': profile.gender or 'unknown',
+                'height': profile.height,
+                'weight': profile.weight,
+                'fitness_level': profile.fitness_level,
+                'diseases': profile.diseases,
+                'allergies': profile.allergies,
+                'exercise_experience': profile.fitness_level
+            }
+            has_profile = True
+        except UserProfile.DoesNotExist:
+            pass
+    
     return Response({
-        'available': True,
-        'model': 'healthwise-ai',
-        'version': '1.0.0'
+        'status': 'available',
+        'user_context': user_context,
+        'message_count': 0,
+        'has_profile': has_profile
     })
 
-@api_view(['GET', 'OPTIONS'])
+@api_view(['GET', 'POST', 'OPTIONS'])
 @permission_classes([AllowAny])
 def chatbot_sessions(request):
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
     
+    if request.method == 'POST':
+        # 새 세션 생성
+        session_id = f"session-{datetime.now().timestamp()}"
+        return Response({
+            'session_id': session_id,
+            'created_at': datetime.now().isoformat()
+        })
+    
+    # GET - 세션 목록
     return Response({
         'count': 0,
         'results': [],
@@ -651,11 +720,72 @@ def chatbot_sessions_active(request):
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
     
+    # 게스트 세션 반환
+    if not request.user.is_authenticated:
+        return Response({
+            'session': {
+                'id': 'guest-session',
+                'created_at': datetime.now().isoformat()
+            },
+            'session_id': 'guest-session'
+        })
+    
     return Response({
-        'active': False,
-        'session_id': None,
-        'started_at': None
+        'session': None,
+        'session_id': None
     })
+
+# 채팅봇 메인 API
+@api_view(['POST', 'OPTIONS'])
+@permission_classes([AllowAny])
+def chatbot(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    try:
+        data = request.data
+        message = data.get('message', '')
+        language = data.get('language', 'ko')
+        
+        # 사용자 정보 수집
+        user_data = {
+            'user_id': request.user.id if request.user.is_authenticated else 'guest',
+            'username': request.user.username if request.user.is_authenticated else 'Guest',
+        }
+        
+        # 프로필 정보 추가
+        if request.user.is_authenticated and hasattr(request.user, 'profile'):
+            profile = request.user.profile
+            user_data.update({
+                'birth_date': profile.birth_date,
+                'gender': profile.gender,
+                'height': profile.height,
+                'weight': profile.weight,
+                'diseases': profile.diseases,
+                'allergies': profile.allergies,
+                'fitness_level': profile.fitness_level
+            })
+        
+        # AI 챗봇 사용
+        chatbot = get_chatbot()
+        result = chatbot.get_health_consultation(user_data, message)
+        
+        # 응답 형식 맞추기
+        return Response({
+            'success': result.get('success', True),
+            'response': result.get('response', ''),
+            'raw_response': result.get('response', ''),
+            'sources': [],
+            'user_context': user_data,
+            'session_id': 'guest-session' if not request.user.is_authenticated else f"session-{request.user.id}"
+        })
+        
+    except Exception as e:
+        return Response({
+            'success': False,
+            'error': f'Chatbot error: {str(e)}',
+            'response': '죄송합니다. 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # 누락된 소셜 알림 엔드포인트
 @api_view(['GET', 'OPTIONS'])
