@@ -32,6 +32,22 @@ def guest_profile(request):
         'is_guest': True,
     })
 
+@api_view(['POST', 'OPTIONS'])
+@permission_classes([AllowAny])
+def guest_login(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    # 게스트 세션 생성
+    import uuid
+    guest_id = str(uuid.uuid4())
+    
+    return Response({
+        'success': True,
+        'guest_id': guest_id,
+        'message': '게스트 모드로 접속했습니다.'
+    })
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def auth_csrf(request):
@@ -86,10 +102,19 @@ def auth_login(request):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST', 'OPTIONS'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])  # 게스트도 로그아웃 가능하도록 변경
 def auth_logout(request):
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
+    
+    # 게스트 사용자 확인
+    is_guest = request.headers.get('X-Is-Guest') == 'true'
+    
+    if is_guest:
+        # 게스트의 경우 그냥 성공 반환
+        return Response({'success': True, 'message': 'Guest logout successful'})
+    
+    # 일반 사용자 로그아웃
     logout(request)
     return Response({'success': True})
 

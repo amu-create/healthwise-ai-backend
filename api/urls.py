@@ -5,6 +5,7 @@ urlpatterns = [
     # 기존 API
     path('test/', views.test_api, name='test_api'),
     path('guest/profile/', views.guest_profile, name='guest_profile'),
+    path('guest/login/', views.guest_login, name='guest_login'),
     path('auth/csrf/', views.auth_csrf, name='auth_csrf'),
     path('auth/login/', views.auth_login, name='auth_login'),
     path('auth/logout/', views.auth_logout, name='auth_logout'),
