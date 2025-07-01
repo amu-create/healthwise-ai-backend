@@ -12,8 +12,9 @@ urlpatterns = [
     path('auth/logout/', views.auth_logout, name='auth_logout'),
     path('auth/register/', views.auth_register, name='auth_register'),
     
-    # Health check endpoint
+    # Health check endpoints
     path('health/', views.api_health, name='api_health'),
+    path('health-check/', views.health_check, name='health_check'),
     
     # 건강 선택지 API
     path('health/options/', views.health_options, name='health_options'),
