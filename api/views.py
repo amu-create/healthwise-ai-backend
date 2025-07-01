@@ -570,8 +570,57 @@ def health_consultation(request):
 @api_view(['GET', 'OPTIONS'])
 @permission_classes([AllowAny])  # TODO: 나중에 IsAuthenticated로 변경
 def fitness_profile(request):
-    # guest_fitness_profile과 동일한 로직 사용
-    return guest_fitness_profile(request)
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    # 인증된 사용자의 경우 실제 프로필 반환
+    if request.user.is_authenticated:
+        try:
+            profile = UserProfile.objects.get(user=request.user)
+            from datetime import date
+            today = date.today()
+            age = today.year - profile.birth_date.year - ((today.month, today.day) < (profile.birth_date.month, profile.birth_date.day)) if profile.birth_date else 30
+            
+            # BMI 계산
+            bmi = None
+            if profile.height and profile.weight:
+                height_m = profile.height / 100
+                bmi = profile.weight / (height_m ** 2)
+            
+            return Response({
+                'age': age,
+                'birth_date': profile.birth_date.isoformat() if profile.birth_date else None,
+                'gender': profile.gender,
+                'height': profile.height,
+                'weight': profile.weight,
+                'bmi': round(bmi, 1) if bmi else None,
+                'body_fat_percentage': 18.5,  # 예시값
+                'muscle_mass': 57.0,  # 예시값
+                'fitness_level': profile.fitness_level,
+                'health_score': 82,  # 예시값
+                'diseases': profile.diseases,
+                'allergies': profile.allergies,
+                'last_updated': datetime.now().isoformat()
+            })
+        except UserProfile.DoesNotExist:
+            pass
+    
+    # 게스트 사용자의 경우 기본값 반환
+    return Response({
+        'age': 30,
+        'birth_date': '1994-01-01',  # 예시 생년월일
+        'gender': 'male',
+        'height': 175,
+        'weight': 70,
+        'bmi': 22.9,
+        'body_fat_percentage': 18.5,
+        'muscle_mass': 57.0,
+        'fitness_level': 'intermediate',
+        'health_score': 82,
+        'diseases': [],
+        'allergies': [],
+        'last_updated': datetime.now().isoformat()
+    })
 
 @api_view(['GET', 'OPTIONS'])
 @permission_classes([AllowAny])
