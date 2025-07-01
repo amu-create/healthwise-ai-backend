@@ -15,25 +15,24 @@ daphne==4.0.0
 openai==1.12.0
 google-generativeai==0.3.2
 
-# LangChain 추가 (무료 버전)
+# LangChain (필수)
 langchain==0.1.0
 langchain-community==0.0.10
 langchain-openai==0.0.5
 langchain-google-genai==0.0.6
-faiss-cpu==1.7.4
 tiktoken==0.5.2
 beautifulsoup4==4.12.3
 lxml==5.0.0
 
-# HuggingFace Embeddings (CPU only for Railway)
-sentence-transformers==2.2.2
+# 경량 벡터 DB (faiss-cpu 대신)
+chromadb==0.4.22
 
-# Celery 추가 (비동기 작업)
+# Celery (비동기 작업)
 celery==5.3.4
 django-celery-beat==2.5.0
 django-celery-results==2.5.1
 
-# 파일 업로드를 위한 스토리지
+# 파일 업로드
 django-storages==1.14.2
 boto3==1.34.0
 Pillow==10.2.0
