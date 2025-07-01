@@ -463,26 +463,26 @@ def youtube_music_recommendations(request):
         mood = data.get('mood', 'energetic')
         
         # 프론트엔드가 keywords를 기대하는 경우
-        if 'exercise' in data and 'mood' in data and request.path.endswith('/youtube/music/'):
+        if 'exercise' in data and 'mood' in data and (request.path.endswith('/youtube/music/') or request.path.endswith('/ai-keywords/')):
             # AI 키워드 생성 (여기서는 간단하게 처리)
             keywords = []
             
             # 운동 타입별 키워드
             exercise_keywords = {
-                'running': ['running music', 'jogging playlist', 'cardio beats', 'marathon music'],
-                'walking': ['walking music', 'relaxed beats', 'outdoor music', 'nature sounds'],
-                'yoga': ['yoga music', 'meditation sounds', 'peaceful music', 'zen playlist'],
-                'strength': ['gym music', 'powerlifting beats', 'workout motivation', 'training music'],
-                'cycling': ['cycling music', 'spinning playlist', 'bike ride beats', 'indoor cycling']
+                'running': ['BTS', 'BLACKPINK', 'Dua Lipa', 'The Weeknd', 'David Guetta'],
+                'walking': ['Ed Sheeran', 'Billie Eilish', 'Taylor Swift', 'Maroon 5'],
+                'yoga': ['Enya', 'Ludovico Einaudi', 'Yiruma', 'Nature Sounds'],
+                'strength': ['Eminem', 'Kanye West', 'DMX', 'Linkin Park', 'Skrillex'],
+                'cycling': ['Calvin Harris', 'Swedish House Mafia', 'Avicii', 'Martin Garrix']
             }
             
             # 기분별 키워드
             mood_keywords = {
-                'energetic': ['high energy', 'upbeat', 'fast tempo', 'motivational'],
-                'calm': ['relaxing', 'peaceful', 'slow tempo', 'ambient'],
-                'focused': ['concentration', 'steady rhythm', 'minimal', 'electronic'],
-                'relaxed': ['chill', 'lofi', 'smooth', 'easy listening'],
-                'pumped': ['intense', 'aggressive', 'powerful', 'adrenaline']
+                'energetic': ['Uptown Funk', 'Can\'t Stop the Feeling', 'Levitating', 'Blinding Lights'],
+                'calm': ['Someone Like You', 'Perfect', 'All of Me', 'Thinking Out Loud'],
+                'focused': ['Lose Yourself', 'In the End', 'Numb', 'Radioactive'],
+                'relaxed': ['Sunset Lover', 'Ocean Drive', 'Stay', 'Shallow'],
+                'pumped': ['Thunder', 'Warriors', 'Remember the Name', 'Till I Collapse']
             }
             
             # 기본 키워드 추가
@@ -491,8 +491,8 @@ def youtube_music_recommendations(request):
             if mood in mood_keywords:
                 keywords.extend(mood_keywords[mood])
             
-            # 2024 키워드 추가
-            keywords.append('2024 playlist')
+            # 추가 키워드
+            keywords.extend(['official music video', 'audio', 'lyrics'])
             
             return Response({
                 'keywords': keywords[:6],  # 최대 6개 키워드

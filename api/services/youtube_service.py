@@ -27,20 +27,20 @@ def get_youtube_music(workout_type='general'):
         
         # 운동 타입별 음악 검색 쿼리
         search_queries = {
-            'cardio': 'cardio workout music mix 2024 high energy BPM',
-            'cardio_energetic': 'high energy cardio music 140-180 BPM workout',
-            'strength': 'gym workout music motivation strength training 2024',
-            'strength_powerful': 'heavy metal gym music powerlifting motivation',
-            'yoga': 'yoga meditation music relaxing peaceful 2024',
-            'yoga_calm': 'deep relaxation yoga music zen meditation',
-            'hiit': 'HIIT workout music intense interval training 2024',
-            'hiit_intense': 'extreme HIIT music high intensity tabata',
-            'running': 'running music 160-180 BPM marathon training 2024',
-            'running_energetic': 'sprint running music fast tempo motivation',
-            'pilates': 'pilates workout music flow relaxing 2024',
-            'dance': 'dance workout music zumba aerobics 2024',
-            'cycling': 'cycling spinning music high energy indoor bike',
-            'general': 'workout music mix motivation 2024'
+            'cardio': 'best cardio songs playlist 2024 EDM electronic dance music',
+            'cardio_energetic': 'high energy EDM music 140-180 BPM songs playlist',
+            'strength': 'best gym songs hip hop rap motivation playlist 2024',
+            'strength_powerful': 'heavy metal rock songs gym playlist motivation',
+            'yoga': 'peaceful meditation music ambient sounds relaxing songs',
+            'yoga_calm': 'zen meditation music nature sounds peaceful songs',
+            'hiit': 'intense EDM dubstep electronic music high energy songs',
+            'hiit_intense': 'aggressive electronic music dubstep trap songs',
+            'running': 'running songs playlist 160-180 BPM pop EDM music',
+            'running_energetic': 'upbeat running songs fast tempo pop music',
+            'pilates': 'chill lofi music relaxing songs playlist',
+            'dance': 'dance pop songs latin music playlist 2024',
+            'cycling': 'spinning class music EDM electronic songs playlist',
+            'general': 'best workout songs 2024 motivation music playlist'
         }
         
         # 무드 기반 추가 키워드
