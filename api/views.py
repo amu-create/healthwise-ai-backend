@@ -483,3 +483,131 @@ def health_consultation(request):
         return Response({
             'error': f'Health consultation error: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# 인증된 사용자를 위한 엔드포인트들
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([AllowAny])  # TODO: 나중에 IsAuthenticated로 변경
+def fitness_profile(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    # 게스트 프로필과 동일한 데이터 반환 (일단)
+    return guest_fitness_profile(request)
+
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([AllowAny])
+def daily_nutrition(request, date):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    return guest_daily_nutrition(request, date)
+
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([AllowAny])
+def nutrition_statistics(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    return guest_nutrition_statistics(request)
+
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([AllowAny])
+def workout_logs(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    return guest_workout_logs(request)
+
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([AllowAny])
+def recommendations_daily(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    return guest_recommendations_daily(request)
+
+# 소셜 기능 엔드포인트
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([AllowAny])
+def social_unread_count(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    return Response({'unread_count': 0})
+
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([AllowAny])
+def social_posts_feed(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    # social_feed와 동일한 데이터 반환
+    posts = get_social_posts()
+    return Response({'count': len(posts), 'results': posts})
+
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([AllowAny])
+def social_stories(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    # 목 스토리 데이터
+    stories = [
+        {
+            'id': 1,
+            'user': {'id': 1, 'username': 'user1', 'profile_image': None},
+            'content': '오늘의 운동 완료!',
+            'image_url': None,
+            'created_at': datetime.now().isoformat(),
+            'expires_at': (datetime.now() + timedelta(hours=24)).isoformat()
+        }
+    ]
+    return Response({'count': len(stories), 'results': stories})
+
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([AllowAny])
+def user_level(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    return Response({
+        'level': 5,
+        'experience': 2500,
+        'next_level_exp': 3000,
+        'title': 'Fitness Enthusiast',
+        'badges': [
+            {'id': 1, 'name': '7-Day Streak', 'icon': 'fire'},
+            {'id': 2, 'name': 'Early Bird', 'icon': 'sun'}
+        ]
+    })
+
+# 채팅봇 엔드포인트
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([AllowAny])
+def chatbot_status(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    return Response({
+        'available': True,
+        'model': 'healthwise-ai',
+        'version': '1.0.0'
+    })
+
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([AllowAny])
+def chatbot_sessions(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    return Response({
+        'count': 0,
+        'results': [],
+        'active_session': None
+    })
+
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([AllowAny])
+def chatbot_sessions_active(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    return Response({
+        'active': False,
+        'session_id': None,
+        'started_at': None
+    })

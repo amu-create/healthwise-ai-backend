@@ -42,4 +42,22 @@ urlpatterns = [
     
     # 🩺 AI 건강 상담 API
     path('health/consultation/', views.health_consultation, name='health_consultation'),
+    
+    # 🏥 인증된 사용자 엔드포인트 (누락된 것들 추가)
+    path('fitness-profile/', views.fitness_profile, name='fitness_profile'),
+    path('daily-nutrition/<str:date>/', views.daily_nutrition, name='daily_nutrition'),
+    path('nutrition-statistics/', views.nutrition_statistics, name='nutrition_statistics'),
+    path('workout-logs/', views.workout_logs, name='workout_logs'),
+    path('recommendations/daily/', views.recommendations_daily, name='recommendations_daily'),
+    
+    # 소셜 기능 추가 엔드포인트
+    path('social/conversations/unread_count/', views.social_unread_count, name='social_unread_count'),
+    path('social/posts/feed/', views.social_posts_feed, name='social_posts_feed'),
+    path('social/stories/', views.social_stories, name='social_stories'),
+    path('user-level/', views.user_level, name='user_level'),
+    
+    # 채팅봇 엔드포인트
+    path('chatbot/status/', views.chatbot_status, name='chatbot_status'),
+    path('chatbot/sessions/', views.chatbot_sessions, name='chatbot_sessions'),
+    path('chatbot/sessions/active/', views.chatbot_sessions_active, name='chatbot_sessions_active'),
 ]
