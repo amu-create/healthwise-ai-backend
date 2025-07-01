@@ -24,9 +24,6 @@ tiktoken==0.5.2
 beautifulsoup4==4.12.3
 lxml==5.0.0
 
-# 경량 벡터 DB (faiss-cpu 대신)
-chromadb==0.4.22
-
 # Celery (비동기 작업)
 celery==5.3.4
 django-celery-beat==2.5.0
