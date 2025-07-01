@@ -15,7 +15,7 @@ from .serializers import (
     FoodAnalysisSerializer, FoodAnalysisRequestSerializer,
     DailyNutritionSerializer
 )
-from apps.core.models import UserProfile
+from .models import UserProfile
 from django.utils import translation
 
 logger = logging.getLogger(__name__)
