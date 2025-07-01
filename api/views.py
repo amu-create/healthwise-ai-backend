@@ -15,6 +15,7 @@ from .services.youtube_service import get_youtube_music, get_workout_videos
 from .services.nutrition_service import analyze_food_simple, get_nutrition_mock_data
 from .services.social_service import get_social_posts, create_post, like_post_action
 from .services.health_consultation import get_health_consultation
+from .ai_service import get_chatbot
 from .models import UserProfile
 
 # 기존 기본 API들
@@ -494,13 +495,34 @@ def health_consultation(request):
         return Response(status=status.HTTP_200_OK)
     
     try:
-        data = json.loads(request.body)
+        data = request.data  # DRF 표준
         question = data.get('question', '')
         category = data.get('category', 'general')
-        user_profile = data.get('user_profile', {})
         
-        consultation = get_health_consultation(question, category, user_profile)
-        return Response(consultation)
+        # 사용자 정보 수집
+        user_data = {
+            'user_id': request.user.id if request.user.is_authenticated else 'guest',
+            'username': request.user.username if request.user.is_authenticated else 'Guest',
+        }
+        
+        # 프로필 정보 추가
+        if request.user.is_authenticated and hasattr(request.user, 'profile'):
+            profile = request.user.profile
+            user_data.update({
+                'birth_date': profile.birth_date,
+                'gender': profile.gender,
+                'height': profile.height,
+                'weight': profile.weight,
+                'diseases': profile.diseases,
+                'allergies': profile.allergies,
+                'fitness_level': profile.fitness_level
+            })
+        
+        # AI 챗봇 사용
+        chatbot = get_chatbot()
+        result = chatbot.get_health_consultation(user_data, question)
+        
+        return Response(result)
         
     except Exception as e:
         return Response({
@@ -645,3 +667,89 @@ def social_notifications_unread_count(request):
     return Response({
         'unread_count': random.randint(0, 5)  # 모의 데이터
     })
+
+# AI 기반 운동 추천
+@api_view(['POST', 'OPTIONS'])
+@permission_classes([AllowAny])
+def ai_workout_recommendation(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    try:
+        # 사용자 정보 수집
+        user_data = {
+            'user_id': request.user.id if request.user.is_authenticated else 'guest',
+            'username': request.user.username if request.user.is_authenticated else 'Guest',
+        }
+        
+        # 요청 데이터
+        data = request.data
+        user_data.update({
+            'goal': data.get('goal', '체중 감량'),
+            'experience': data.get('experience', '초급'),
+        })
+        
+        # 프로필 정보 추가
+        if request.user.is_authenticated and hasattr(request.user, 'profile'):
+            profile = request.user.profile
+            user_data.update({
+                'birth_date': profile.birth_date,
+                'gender': profile.gender,
+                'height': profile.height,
+                'weight': profile.weight,
+                'fitness_level': profile.fitness_level
+            })
+        
+        # AI 챗봇 사용
+        chatbot = get_chatbot()
+        result = chatbot.generate_workout_recommendation(user_data)
+        
+        return Response(result)
+        
+    except Exception as e:
+        return Response({
+            'error': f'Workout recommendation error: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# AI 기반 영양 추천
+@api_view(['POST', 'OPTIONS'])
+@permission_classes([AllowAny])
+def ai_nutrition_recommendation(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    try:
+        # 사용자 정보 수집
+        user_data = {
+            'user_id': request.user.id if request.user.is_authenticated else 'guest',
+            'username': request.user.username if request.user.is_authenticated else 'Guest',
+        }
+        
+        # 요청 데이터
+        data = request.data
+        user_data.update({
+            'goal': data.get('goal', '균형 잡힌 식단'),
+        })
+        
+        # 프로필 정보 추가
+        if request.user.is_authenticated and hasattr(request.user, 'profile'):
+            profile = request.user.profile
+            user_data.update({
+                'birth_date': profile.birth_date,
+                'gender': profile.gender,
+                'height': profile.height,
+                'weight': profile.weight,
+                'allergies': profile.allergies,
+                'diseases': profile.diseases
+            })
+        
+        # AI 챗봇 사용
+        chatbot = get_chatbot()
+        result = chatbot.generate_nutrition_recommendation(user_data)
+        
+        return Response(result)
+        
+    except Exception as e:
+        return Response({
+            'error': f'Nutrition recommendation error: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

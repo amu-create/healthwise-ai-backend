@@ -63,4 +63,8 @@ urlpatterns = [
     
     # 누락된 소셜 알림 엔드포인트
     path('social/notifications/unread_count/', views.social_notifications_unread_count, name='social_notifications_unread_count'),
+    
+    # AI 기반 추천 엔드포인트
+    path('ai/workout-recommendation/', views.ai_workout_recommendation, name='ai_workout_recommendation'),
+    path('ai/nutrition-recommendation/', views.ai_nutrition_recommendation, name='ai_nutrition_recommendation'),
 ]
