@@ -741,10 +741,32 @@ def nutrition_statistics(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def nutrition_complete(request):
-    """임시 분석 결과를 영구 저장"""
+    """임시 분석 결과를 영구 저장 (수정된 버전)"""
     try:
+        # 게스트 사용자 체크
+        if not request.user.is_authenticated:
+            return Response({
+                'success': False,
+                'error': '게스트 사용자는 영양 정보를 저장할 수 없습니다.',
+                'message': '회원가입 후 이용해주세요.'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
         # request body에서 분석 데이터 추출
         data = request.data
+        
+        # 숫자 필드 검증 및 변환
+        try:
+            calories = float(data.get('calories', 0))
+            protein = float(data.get('protein', 0))
+            carbohydrates = float(data.get('carbohydrates', 0))
+            fat = float(data.get('fat', 0))
+            fiber = float(data.get('fiber', 0))
+            sugar = float(data.get('sugar', 0))
+            sodium = float(data.get('sodium', 0))
+        except ValueError as e:
+            return Response({
+                'error': f'영양 수치가 올바르지 않습니다: {str(e)}'
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         # FoodAnalysis 객체 생성
         food_analysis = FoodAnalysis.objects.create(
@@ -752,45 +774,55 @@ def nutrition_complete(request):
             food_name=data.get('food_name', ''),
             description=data.get('description', ''),
             image_base64=data.get('image_base64', ''),
-            calories=data.get('calories', 0),
-            protein=data.get('protein', 0),
-            carbohydrates=data.get('carbohydrates', 0),
-            fat=data.get('fat', 0),
-            fiber=data.get('fiber', 0),
-            sugar=data.get('sugar', 0),
-            sodium=data.get('sodium', 0),
+            calories=calories,
+            protein=protein,
+            carbohydrates=carbohydrates,
+            fat=fat,
+            fiber=fiber,
+            sugar=sugar,
+            sodium=sodium,
             analysis_summary=data.get('analysis_summary', ''),
             recommendations=data.get('recommendations', '')
         )
         
         # 오늘의 영양 기록에 추가
         today = date.today()
-        daily_nutrition, created = DailyNutrition.objects.get_or_create(
-            user=request.user,
-            date=today
-        )
-        daily_nutrition.food_analyses.add(food_analysis)
+        with transaction.atomic():  # 트랜잭션으로 묶어서 처리
+            daily_nutrition, created = DailyNutrition.objects.get_or_create(
+                user=request.user,
+                date=today
+            )
+            daily_nutrition.food_analyses.add(food_analysis)
+            
+            # 총 영양소 업데이트 (Sum 사용하여 정확히 계산)
+            from django.db.models import Sum
+            
+            totals = daily_nutrition.food_analyses.aggregate(
+                total_calories=Sum('calories'),
+                total_protein=Sum('protein'),
+                total_carbohydrates=Sum('carbohydrates'),
+                total_fat=Sum('fat')
+            )
+            
+            daily_nutrition.total_calories = totals['total_calories'] or 0
+            daily_nutrition.total_protein = totals['total_protein'] or 0
+            daily_nutrition.total_carbohydrates = totals['total_carbohydrates'] or 0
+            daily_nutrition.total_fat = totals['total_fat'] or 0
+            daily_nutrition.save()
         
-        # 총 영양소 업데이트
-        daily_nutrition.total_calories = daily_nutrition.food_analyses.aggregate(
-            total=Sum('calories')
-        )['total'] or 0
-        daily_nutrition.total_protein = daily_nutrition.food_analyses.aggregate(
-            total=Sum('protein')
-        )['total'] or 0
-        daily_nutrition.total_carbohydrates = daily_nutrition.food_analyses.aggregate(
-            total=Sum('carbohydrates')
-        )['total'] or 0
-        daily_nutrition.total_fat = daily_nutrition.food_analyses.aggregate(
-            total=Sum('fat')
-        )['total'] or 0
-        daily_nutrition.save()
-        
+        # 업데이트된 일일 영양 정보 포함하여 반환
         serializer = FoodAnalysisSerializer(food_analysis)
         return Response({
             'success': True,
             'message': '영양 정보가 성공적으로 저장되었습니다.',
-            'data': serializer.data
+            'data': serializer.data,
+            'daily_totals': {
+                'date': today.isoformat(),
+                'total_calories': daily_nutrition.total_calories,
+                'total_protein': daily_nutrition.total_protein,
+                'total_carbohydrates': daily_nutrition.total_carbohydrates,
+                'total_fat': daily_nutrition.total_fat
+            }
         }, status=status.HTTP_201_CREATED)
         
     except Exception as e:

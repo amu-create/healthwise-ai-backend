@@ -797,6 +797,16 @@ def social_posts_create(request):
         return Response(status=status.HTTP_200_OK)
     
     try:
+        # 게스트 사용자 체크
+        is_guest = not request.user.is_authenticated or request.headers.get('X-Is-Guest') == 'true'
+        
+        if is_guest:
+            return Response({
+                'success': False,
+                'error': '게스트 사용자는 포스트를 작성할 수 없습니다.',
+                'message': '회원가입 후 이용해주세요.'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
         # multipart/form-data 처리
         content = request.data.get('content', '')
         visibility = request.data.get('visibility', 'public')
@@ -814,6 +824,21 @@ def social_posts_create(request):
         # 파일 처리 (media_file이 있는 경우)
         image_url = None
         if media_file:
+            # 파일 크기 체크 (10MB 제한)
+            if media_file.size > 10 * 1024 * 1024:
+                return Response({
+                    'success': False,
+                    'error': '파일 크기는 10MB를 초과할 수 없습니다.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 파일 타입 체크
+            allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+            if media_file.content_type not in allowed_types:
+                return Response({
+                    'success': False,
+                    'error': '지원하지 않는 파일 형식입니다. (JPEG, PNG, GIF, WebP만 가능)'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
             # 여기서는 간단히 URL만 생성 (실제로는 S3 등에 업로드 필요)
             image_url = f'/media/posts/{media_file.name}'
             # TODO: 실제 파일 업로드 처리
@@ -822,9 +847,9 @@ def social_posts_create(request):
         new_post = {
             'id': random.randint(100, 999),
             'user': {
-                'id': request.user.id if request.user.is_authenticated else 'guest',
-                'username': request.user.username if request.user.is_authenticated else 'Guest',
-                'profile_image': None,
+                'id': request.user.id,
+                'username': request.user.username,
+                'profile_image': None,  # TODO: 프로필 이미지 추가
                 'profile_picture_url': None
             },
             'content': content,
@@ -846,11 +871,20 @@ def social_posts_create(request):
             'mentions': []
         }
         
-        # 성공 응답 - AI 운동 루틴처럼 직접 데이터 반환
+        # TODO: 실제 DB 저장 로직
+        # if request.user.is_authenticated:
+        #     post = Post.objects.create(
+        #         user=request.user,
+        #         content=content,
+        #         visibility=visibility,
+        #         ...
+        #     )
+        
+        # 성공 응답
         return Response(new_post, status=status.HTTP_201_CREATED)
         
     except Exception as e:
-        logger.error(f'Social post create error: {str(e)}')
+        logger.error(f'Social post create error: {str(e)}', exc_info=True)
         return Response({
             'error': f'Failed to create post: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -1090,6 +1124,7 @@ def social_notifications_unread_count(request):
 @api_view(['POST', 'OPTIONS'])
 @permission_classes([AllowAny])
 def workout_logs_create(request):
+    """운동 로그 생성 (수정된 버전)"""
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
     
@@ -1102,6 +1137,19 @@ def workout_logs_create(request):
                 'error': 'routine_id is required'
             }, status=status.HTTP_400_BAD_REQUEST)
         
+        # duration 값 확인 및 정수로 변환
+        duration = int(data.get('duration', 30))
+        
+        # 칼로리 계산 (운동 강도에 따라 다르게 계산)
+        intensity_multiplier = {
+            'low': 5,
+            'moderate': 8,
+            'high': 12
+        }
+        intensity = data.get('intensity', 'moderate')
+        calories_per_minute = intensity_multiplier.get(intensity, 8)
+        calories_burned = duration * calories_per_minute
+        
         # 운동 로그 생성
         workout_log = {
             'id': random.randint(1000, 9999),
@@ -1109,14 +1157,19 @@ def workout_logs_create(request):
             'routine_name': data.get('routine_name', '운동 루틴'),
             'user_id': request.user.id if request.user.is_authenticated else 'guest',
             'date': data.get('date', datetime.now().strftime('%Y-%m-%d')),
-            'duration': data.get('duration', 30),
-            'calories_burned': data.get('duration', 30) * 8,  # 대략적인 칼로리 계산
+            'duration': duration,  # 정수로 저장
+            'calories_burned': calories_burned,
             'notes': data.get('notes', ''),
+            'intensity': intensity,
             'created_at': datetime.now().isoformat(),
             'is_guest': not request.user.is_authenticated,
             'exercises_completed': data.get('exercises_completed', 0),
             'total_sets': data.get('total_sets', 0)
         }
+        
+        # 실제 DB 저장 로직 (Django 모델 사용 시)
+        # if request.user.is_authenticated:
+        #     WorkoutLog.objects.create(**workout_log)
         
         # 세션에 저장 (임시 저장소)
         if not hasattr(request.session, '_workout_logs'):
@@ -1127,9 +1180,9 @@ def workout_logs_create(request):
         share_to_social = data.get('share_to_social', False)
         social_post = None
         
-        if share_to_social:
-            user_id = request.user.id if request.user.is_authenticated else 'guest'
-            content = data.get('social_content', '')
+        if share_to_social and request.user.is_authenticated:  # 게스트는 소셜 공유 불가
+            user_id = request.user.id
+            content = data.get('social_content', f'{duration}분 동안 운동을 완료했습니다! 💪')
             
             # 소셜 포스트 생성
             social_post = social_workout_service.create_workout_post(
@@ -1147,6 +1200,7 @@ def workout_logs_create(request):
         return Response(response_data, status=status.HTTP_201_CREATED)
         
     except Exception as e:
+        logger.error(f'Workout log create error: {str(e)}')
         return Response({
             'error': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
