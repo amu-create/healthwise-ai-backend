@@ -440,7 +440,8 @@ def exercise_list(request):
 def workout_routines(request):
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
-    return Response({'count': len(ROUTINE_DATA), 'results': ROUTINE_DATA})
+    # 프론트엔드가 배열을 기대하므로 배열로 반환
+    return Response(ROUTINE_DATA)
 
 @api_view(['GET', 'POST', 'OPTIONS'])
 @permission_classes([AllowAny])
@@ -652,28 +653,101 @@ def fitness_profile(request):
 def daily_nutrition(request, date):
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
-    return guest_daily_nutrition(request, date)
+    
+    # 직접 구현
+    nutrition_data = get_nutrition_mock_data(date)
+    return Response(nutrition_data)
 
 @api_view(['GET', 'OPTIONS'])
 @permission_classes([AllowAny])
 def nutrition_statistics(request):
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
-    return guest_nutrition_statistics(request)
+    
+    # 직접 구현
+    start_date = request.GET.get('start_date', (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d'))
+    end_date = request.GET.get('end_date', datetime.now().strftime('%Y-%m-%d'))
+    
+    stats = {
+        'period': f'{start_date} to {end_date}',
+        'average_daily_calories': random.randint(1900, 2100),
+        'total_calories': random.randint(13000, 15000),
+        'average_nutrients': {
+            'protein': random.randint(70, 85),
+            'carbs': random.randint(250, 280),
+            'fat': random.randint(60, 75),
+            'fiber': random.randint(25, 30)
+        },
+        'goal_achievement': {
+            'calories': random.randint(85, 95),
+            'protein': random.randint(90, 100),
+            'carbs': random.randint(80, 95),
+            'fat': random.randint(85, 95)
+        }
+    }
+    
+    return Response(stats)
 
 @api_view(['GET', 'OPTIONS'])
 @permission_classes([AllowAny])
 def workout_logs(request):
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
-    return guest_workout_logs(request)
+    
+    # 직접 구현 (guest_workout_logs를 호출하지 않음)
+    limit = int(request.GET.get('limit', 7))
+    workout_types = ['Cardio', 'Strength Training', 'Yoga', 'HIIT', 'Swimming', 'Running']
+    logs = []
+    
+    for i in range(limit):
+        date = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
+        if random.random() > 0.3:
+            logs.append({
+                'id': f'workout-{i}',
+                'date': date,
+                'type': random.choice(workout_types),
+                'duration': random.randint(30, 90),
+                'calories_burned': random.randint(200, 500),
+                'intensity': random.choice(['low', 'moderate', 'high']),
+                'notes': f'Great {random.choice(workout_types).lower()} session!'
+            })
+    
+    return Response({'count': len(logs), 'results': logs})
 
 @api_view(['GET', 'OPTIONS'])
 @permission_classes([AllowAny])
 def recommendations_daily(request):
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
-    return guest_recommendations_daily(request)
+    
+    # 직접 구현
+    recommendations = {
+        'date': datetime.now().strftime('%Y-%m-%d'),
+        'exercise': {
+            'type': random.choice(['Cardio', 'Strength', 'Flexibility', 'Balance']),
+            'duration': random.randint(30, 60),
+            'intensity': random.choice(['moderate', 'high']),
+            'description': 'Based on your recent activity, we recommend focusing on this type of exercise today.'
+        },
+        'nutrition': {
+            'focus': random.choice(['Increase protein', 'More vegetables', 'Stay hydrated', 'Reduce sugar']),
+            'target_calories': random.randint(1900, 2100),
+            'water_intake': random.randint(8, 10),
+            'tips': [
+                'Eat a balanced breakfast',
+                'Include lean protein in every meal',
+                'Choose whole grains over refined',
+                'Aim for 5 servings of fruits and vegetables'
+            ]
+        },
+        'wellness': {
+            'sleep_target': random.randint(7, 9),
+            'stress_relief': random.choice(['Meditation', 'Deep breathing', 'Walk in nature', 'Yoga']),
+            'daily_tip': 'Remember to take breaks and stretch every hour if you\'re sitting for long periods.'
+        }
+    }
+    
+    return Response(recommendations)
 
 # 소셜 기능 엔드포인트
 @api_view(['GET', 'OPTIONS'])
@@ -1066,49 +1140,75 @@ def ai_workout(request):
     
     try:
         data = request.data
-        exercise = data.get('exercise', 'general')
-        experience = data.get('experience', '초급')
+        muscle_group = data.get('muscle_group', '전신')  # exercise -> muscle_group
+        level = data.get('level', '초급')  # experience -> level
         duration = data.get('duration', 30)
+        equipment_available = data.get('equipment_available', True)
+        specific_goals = data.get('specific_goals', '')
         
-        # AI 운동 추천 생성
-        workout_plan = {
-            'success': True,
-            'plan': {
-                'name': f'{exercise} 운동 플랜',
-                'level': experience,
-                'duration': duration,
-                'exercises': [
-                    {
-                        'name': '워밍업',
-                        'duration': 5,
-                        'sets': 1,
-                        'reps': '-',
-                        'description': '가볍게 몸을 풀어주세요'
-                    },
-                    {
-                        'name': '메인 운동',
-                        'duration': duration - 10,
-                        'sets': 3,
-                        'reps': '10-15',
-                        'description': f'{exercise} 운동을 진행하세요'
-                    },
-                    {
-                        'name': '쿨다운',
-                        'duration': 5,
-                        'sets': 1,
-                        'reps': '-',
-                        'description': '스트레칭으로 마무리하세요'
-                    }
-                ],
-                'tips': [
-                    '운동 전후 충분한 수분 섭취',
-                    '본인의 체력에 맞게 강도 조절',
-                    '호흡을 잘 유지하며 운동'
-                ]
-            }
+        # 간단한 루틴 생성 로직
+        import random
+        from datetime import datetime
+        
+        # 근육군별 예시 운동
+        exercises_by_muscle = {
+            '가슴': ['푸시업', '벤치프레스', '덤벨 플라이'],
+            '등': ['풀업', '레트 풀다운', '원암 로우'],
+            '하체': ['스쿼트', '런지', '레그 프레스'],
+            '어깨': ['쇼더 프레스', '사이드 레터럴 레이즈', '프론트 레이즈'],
+            '팔': ['바이셉 컴', '트라이셉 익스텐션', '해머 컴'],
+            '복근': ['크런치', '플랭크', '레그 레이즈'],
+            '전신': ['버피', '마운틴 클라이머', '점핑 잭']
         }
         
-        return Response(workout_plan)
+        selected_exercises = exercises_by_muscle.get(muscle_group, ['푸시업', '스쿼트', '플랭크'])
+        
+        # 레벨에 따른 세트/반복 수 조정
+        level_config = {
+            '초급': {'sets': 3, 'reps': 10},
+            '중급': {'sets': 4, 'reps': 12},
+            '상급': {'sets': 5, 'reps': 15}
+        }
+        
+        config = level_config.get(level, level_config['초급'])
+        
+        # 루틴 생성
+        routine_exercises = []
+        for i, exercise_name in enumerate(selected_exercises[:3]):  # 최대 3개 운동
+            routine_exercises.append({
+                'id': i + 1,
+                'exercise': {
+                    'id': i + 1,
+                    'name': exercise_name,
+                    'muscle_group': muscle_group,
+                    'gif_url': None,
+                    'default_sets': config['sets'],
+                    'default_reps': config['reps'],
+                    'exercise_type': 'strength',
+                    'description': f'{exercise_name} 운동'
+                },
+                'order': i + 1,
+                'sets': config['sets'],
+                'reps': config['reps'],
+                'recommended_weight': None,
+                'notes': '정확한 자세로 천천히 수행하세요'
+            })
+        
+        # AI 생성 루틴 객체
+        routine = {
+            'id': random.randint(1000, 9999),  # 임시 ID
+            'name': f'AI {muscle_group} 루틴 ({level})',
+            'exercises': routine_exercises,
+            'level': level,
+            'is_ai_generated': True,
+            'created_at': datetime.now().isoformat(),
+            'updated_at': datetime.now().isoformat()
+        }
+        
+        return Response({
+            'success': True,
+            'routine': routine
+        })
         
     except Exception as e:
         return Response({
