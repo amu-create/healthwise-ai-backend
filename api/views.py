@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 # 서비스 모듈 import
 from .services.data import HEALTH_OPTIONS, EXERCISE_DATA, ROUTINE_DATA
 from .services.youtube_service import get_youtube_music, get_workout_videos
+from .services.kakao_social_service import KakaoSocialService
 from .services.nutrition_service import analyze_food_simple, get_nutrition_mock_data
 from .services.social_service import get_social_posts, create_post, like_post_action
 from .services.health_consultation import get_health_consultation
@@ -492,10 +493,30 @@ def analyze_nutrition(request):
         data = json.loads(request.body)
         food_description = data.get('food_description', '')
         
-        analysis = analyze_food_simple(food_description)
-        return Response(analysis)
+        # 사용자 정보 수집 (게스트도 가능)
+        user_data = None
+        if request.user.is_authenticated and hasattr(request.user, 'userprofile'):
+            profile = request.user.userprofile
+            user_data = {
+                'allergies': profile.allergies,
+                'diseases': profile.diseases,
+                'fitness_goal': getattr(profile, 'fitness_goal', '건강 유지')
+            }
+        
+        # Gemini AI 사용
+        from .services.gemini_nutrition_service import get_gemini_analyzer
+        analyzer = get_gemini_analyzer()
+        result = analyzer.analyze_food_with_ai(food_description, user_data)
+        
+        if result.get('success'):
+            return Response(result['analysis'])
+        else:
+            # 폴백: 기존 간단한 분석 사용
+            analysis = analyze_food_simple(food_description)
+            return Response(analysis)
         
     except Exception as e:
+        logger.error(f'Nutrition analysis error: {str(e)}')
         return Response({
             'error': f'Nutrition analysis error: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

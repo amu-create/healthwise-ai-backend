@@ -129,3 +129,46 @@ class HealthConsultation(models.Model):
     is_public = models.BooleanField(default=False)
     
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+# 영양 분석 관련 모델
+class FoodAnalysis(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='food_analyses')
+    food_name = models.CharField(max_length=200)
+    description = models.TextField(blank=True, null=True)
+    image_url = models.URLField(blank=True, null=True)
+    image_base64 = models.TextField(blank=True, null=True)
+    calories = models.IntegerField()
+    protein = models.FloatField(help_text="단백질 (g)")
+    carbohydrates = models.FloatField(help_text="탄수화물 (g)")
+    fat = models.FloatField(help_text="지방 (g)")
+    fiber = models.FloatField(null=True, blank=True, help_text="식이섬유 (g)")
+    sugar = models.FloatField(null=True, blank=True, help_text="당류 (g)")
+    sodium = models.FloatField(null=True, blank=True, help_text="나트륨 (mg)")
+    analysis_summary = models.TextField()
+    recommendations = models.TextField()
+    analyzed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "음식 분석"
+        verbose_name_plural = "음식 분석 목록"
+        ordering = ['-analyzed_at']
+
+
+# 일일 영양 기록
+class DailyNutrition(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='daily_nutrition')
+    date = models.DateField()
+    total_calories = models.IntegerField(default=0)
+    total_protein = models.FloatField(default=0)
+    total_carbohydrates = models.FloatField(default=0)
+    total_fat = models.FloatField(default=0)
+    food_analyses = models.ManyToManyField(FoodAnalysis)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "일일 영양 기록"
+        verbose_name_plural = "일일 영양 기록 목록"
+        unique_together = [['user', 'date']]
+        ordering = ['-date']

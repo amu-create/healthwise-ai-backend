@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import views_nutrition
 
 urlpatterns = [
     # 기존 API
@@ -36,6 +37,16 @@ urlpatterns = [
     # 🥗 영양 관련 API
     path('nutrition/analyze/', views.analyze_nutrition, name='analyze_nutrition'),
     path('nutrition/tracking/', views.nutrition_tracking, name='nutrition_tracking'),
+    
+    # AI 영양 분석 API 추가
+    path('ai-nutrition/', views_nutrition.ai_nutrition_analysis, name='ai_nutrition_analysis'),
+    path('ai-nutrition/analyze/', views_nutrition.ai_nutrition_analysis_only, name='ai_nutrition_analysis_only'),
+    path('food-analyses/', views_nutrition.food_analysis_list, name='food_analysis_list'),
+    path('food-analyses/<int:pk>/', views_nutrition.food_analysis_detail, name='food_analysis_detail'),
+    path('daily-nutrition/', views_nutrition.daily_nutrition_list, name='daily_nutrition_list'),
+    path('daily-nutrition/<str:date_str>/', views_nutrition.daily_nutrition_detail, name='daily_nutrition_detail'),
+    path('nutrition-statistics/', views_nutrition.nutrition_statistics, name='nutrition_statistics'),
+    path('nutrition-complete/', views_nutrition.nutrition_complete, name='nutrition_complete'),
     
     # 👥 소셜 기능 API
     path('social/feed/', views.social_feed, name='social_feed'),
