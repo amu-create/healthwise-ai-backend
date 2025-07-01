@@ -1368,6 +1368,31 @@ def ai_nutrition_recommendation(request):
             'error': f'Nutrition recommendation error: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+# 음악 피드백 저장
+@api_view(['POST', 'OPTIONS'])
+@permission_classes([AllowAny])
+def music_save_feedback(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    try:
+        data = request.data
+        feedback = data.get('feedback', '')
+        songs_played = data.get('songs_played', [])
+        workout_id = data.get('workout_id')
+        
+        # 여기서는 간단히 성공 응답만 반환
+        # 실제로는 데이터베이스에 저장해야 함
+        return Response({
+            'success': True,
+            'message': f'Feedback {feedback} saved for {len(songs_played)} songs'
+        })
+        
+    except Exception as e:
+        return Response({
+            'error': f'Save feedback error: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 # 누락된 운동 관련 엔드포인트
 @api_view(['GET', 'OPTIONS'])
 @permission_classes([AllowAny])

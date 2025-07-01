@@ -233,10 +233,12 @@ def ai_nutrition_analysis(request):
     data = serializer.validated_data
     
     # 사용자 프로필 가져오기
-    try:
-        user_profile = UserProfile.objects.get(user=request.user)
-    except UserProfile.DoesNotExist:
-        user_profile = None
+    user_profile = None
+    if request.user.is_authenticated:
+        try:
+            user_profile = UserProfile.objects.get(user=request.user)
+        except UserProfile.DoesNotExist:
+            user_profile = None
     
     # 사용자 컨텍스트 생성
     user_context = ""

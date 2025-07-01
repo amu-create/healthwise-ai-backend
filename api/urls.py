@@ -32,7 +32,9 @@ urlpatterns = [
     
     # 🎵 유튜브 음악 추천 API
     path('youtube/music/', views.youtube_music_recommendations, name='youtube_music'),
+    path('music/ai-keywords/', views.youtube_music_recommendations, name='music_ai_keywords'),  # 프론트엔드가 기대하는 엔드포인트
     path('music/youtube-search/', views.youtube_search, name='youtube_search'),
+    path('music/save-feedback/', views.music_save_feedback, name='music_save_feedback'),  # 피드백 저장
     
     # 🥗 영양 관련 API - 기본 기능
     path('nutrition/analyze/', views.analyze_nutrition, name='analyze_nutrition'),
