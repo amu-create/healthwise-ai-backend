@@ -1,6 +1,6 @@
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from django.conf import settings
 from django.db import transaction
@@ -25,7 +25,7 @@ genai.configure(api_key=settings.GEMINI_API_KEY)
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def ai_nutrition_analysis_only(request):
     """AI 영양 분석만 수행 (저장하지 않음)"""
     serializer = FoodAnalysisRequestSerializer(data=request.data)
@@ -35,10 +35,12 @@ def ai_nutrition_analysis_only(request):
     data = serializer.validated_data
     
     # 사용자 프로필 가져오기
-    try:
-        user_profile = UserProfile.objects.get(user=request.user)
-    except UserProfile.DoesNotExist:
-        user_profile = None
+    user_profile = None
+    if request.user.is_authenticated:
+        try:
+            user_profile = UserProfile.objects.get(user=request.user)
+        except UserProfile.DoesNotExist:
+            user_profile = None
     
     # 사용자 컨텍스트 생성
     user_context = ""
@@ -221,7 +223,7 @@ def ai_nutrition_analysis_only(request):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def ai_nutrition_analysis(request):
     """AI 영양 분석 및 저장"""
     serializer = FoodAnalysisRequestSerializer(data=request.data)
@@ -394,7 +396,24 @@ def ai_nutrition_analysis(request):
         
         nutrition_data = json.loads(json_str)
         
-        # FoodAnalysis 객체 생성
+        # FoodAnalysis 객체 생성 (게스트는 저장하지 않음)
+        if not request.user.is_authenticated:
+            # 게스트는 분석 결과만 반환
+            return Response({
+                'food_name': nutrition_data['food_name'],
+                'calories': nutrition_data['calories'],
+                'protein': nutrition_data['protein'],
+                'carbohydrates': nutrition_data['carbohydrates'],
+                'fat': nutrition_data['fat'],
+                'fiber': nutrition_data.get('fiber', 0),
+                'sugar': nutrition_data.get('sugar', 0),
+                'sodium': nutrition_data.get('sodium', 0),
+                'analysis_summary': nutrition_data['analysis_summary'],
+                'recommendations': nutrition_data['recommendations'],
+                'is_guest': True,
+                'message': '회원가입 후 분석 기록을 저장할 수 있습니다.'
+            }, status=status.HTTP_200_OK)
+        
         food_analysis = FoodAnalysis.objects.create(
             user=request.user,
             food_name=nutrition_data['food_name'],
@@ -446,7 +465,7 @@ def ai_nutrition_analysis(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def food_analysis_list(request):
     """음식 분석 기록 목록 조회"""
     date_from = request.query_params.get('date_from')
@@ -464,7 +483,7 @@ def food_analysis_list(request):
 
 
 @api_view(['GET', 'DELETE'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def food_analysis_detail(request, pk):
     """음식 분석 기록 상세 조회 및 삭제"""
     try:
@@ -504,7 +523,7 @@ def food_analysis_detail(request, pk):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def daily_nutrition_list(request):
     """일일 영양 기록 목록 조회"""
     date_from = request.query_params.get('date_from')
@@ -522,7 +541,7 @@ def daily_nutrition_list(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def daily_nutrition_detail(request, date_str):
     """특정 날짜의 영양 기록 조회"""
     try:
@@ -533,19 +552,38 @@ def daily_nutrition_detail(request, date_str):
             status=status.HTTP_400_BAD_REQUEST
         )
     
+    # 게스트 사용자 처리
+    if not request.user.is_authenticated:
+        # 게스트용 목 데이터 반환
+        mock_data = {
+            'date': date_str,
+            'total_calories': 0,
+            'total_protein': 0,
+            'total_carbohydrates': 0,
+            'total_fat': 0,
+            'food_analyses': [],
+            'message': '게스트 사용자는 영양 기록을 저장할 수 없습니다.'
+        }
+        return Response(mock_data)
+    
     try:
         record = DailyNutrition.objects.get(user=request.user, date=target_date)
         serializer = DailyNutritionSerializer(record)
         return Response(serializer.data)
     except DailyNutrition.DoesNotExist:
-        return Response(
-            {"error": "해당 날짜의 영양 기록이 없습니다."},
-            status=status.HTTP_404_NOT_FOUND
-        )
+        # 404 대신 빈 데이터 반환
+        return Response({
+            'date': date_str,
+            'total_calories': 0,
+            'total_protein': 0,
+            'total_carbohydrates': 0,
+            'total_fat': 0,
+            'food_analyses': []
+        })
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def nutrition_statistics(request):
     """영양 통계 조회"""
     # 날짜 파라미터로 기간 설정
@@ -565,6 +603,39 @@ def nutrition_statistics(request):
         # 기본값: 최근 7일
         end_date = date.today()
         start_date = end_date - timedelta(days=7)
+    
+    # 게스트 사용자 처리
+    if not request.user.is_authenticated:
+        # 게스트용 목 데이터 생성
+        daily_data = []
+        current_date = start_date
+        while current_date <= end_date:
+            daily_data.append({
+                'date': current_date.isoformat(),
+                'total_calories': 0,
+                'total_protein': 0,
+                'total_carbohydrates': 0,
+                'total_fat': 0,
+                'food_count': 0
+            })
+            current_date += timedelta(days=1)
+        
+        return Response({
+            'daily_data': daily_data,
+            'period_stats': {
+                'average_calories': 0,
+                'average_protein': 0,
+                'average_carbohydrates': 0,
+                'average_fat': 0,
+                'total_days': (end_date - start_date).days + 1,
+                'total_analyses': 0,
+                'trend_calories': 0,
+                'trend_protein': 0,
+                'trend_carbohydrates': 0,
+                'trend_fat': 0
+            },
+            'message': '게스트 사용자는 통계를 볼 수 없습니다.'
+        })
     
     # 모든 날짜 범위의 기록 조회
     records = DailyNutrition.objects.filter(
@@ -666,7 +737,7 @@ def nutrition_statistics(request):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def nutrition_complete(request):
     """임시 분석 결과를 영구 저장"""
     try:
