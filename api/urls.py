@@ -49,6 +49,7 @@ urlpatterns = [
     path('daily-nutrition/<str:date>/', views.daily_nutrition, name='daily_nutrition'),
     path('nutrition-statistics/', views.nutrition_statistics, name='nutrition_statistics'),
     path('workout-logs/', views.workout_logs, name='workout_logs'),
+    path('workout-logs/create/', views.workout_logs_create, name='workout_logs_create'),
     path('recommendations/daily/', views.recommendations_daily, name='recommendations_daily'),
     
     # 소셜 기능 추가 엔드포인트

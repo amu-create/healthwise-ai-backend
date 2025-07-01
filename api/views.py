@@ -18,6 +18,7 @@ from .services.youtube_service import get_youtube_music, get_workout_videos
 from .services.nutrition_service import analyze_food_simple, get_nutrition_mock_data
 from .services.social_service import get_social_posts, create_post, like_post_action
 from .services.health_consultation import get_health_consultation
+from .services.social_workout_service import social_workout_service
 from .ai_service import get_chatbot
 from .models import UserProfile
 
@@ -691,31 +692,68 @@ def nutrition_statistics(request):
     
     return Response(stats)
 
-@api_view(['GET', 'OPTIONS'])
+@api_view(['GET', 'POST', 'OPTIONS'])
 @permission_classes([AllowAny])
 def workout_logs(request):
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
     
-    # 직접 구현 (guest_workout_logs를 호출하지 않음)
-    limit = int(request.GET.get('limit', 7))
-    workout_types = ['Cardio', 'Strength Training', 'Yoga', 'HIIT', 'Swimming', 'Running']
-    logs = []
+    if request.method == 'GET':
+        # 기존 GET 로직
+        limit = int(request.GET.get('limit', 7))
+        workout_types = ['Cardio', 'Strength Training', 'Yoga', 'HIIT', 'Swimming', 'Running']
+        logs = []
+        
+        for i in range(limit):
+            date = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
+            if random.random() > 0.3:
+                logs.append({
+                    'id': f'workout-{i}',
+                    'date': date,
+                    'type': random.choice(workout_types),
+                    'duration': random.randint(30, 90),
+                    'calories_burned': random.randint(200, 500),
+                    'intensity': random.choice(['low', 'moderate', 'high']),
+                    'notes': f'Great {random.choice(workout_types).lower()} session!'
+                })
+        
+        return Response({'count': len(logs), 'results': logs})
     
-    for i in range(limit):
-        date = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
-        if random.random() > 0.3:
-            logs.append({
-                'id': f'workout-{i}',
-                'date': date,
-                'type': random.choice(workout_types),
-                'duration': random.randint(30, 90),
-                'calories_burned': random.randint(200, 500),
-                'intensity': random.choice(['low', 'moderate', 'high']),
-                'notes': f'Great {random.choice(workout_types).lower()} session!'
-            })
-    
-    return Response({'count': len(logs), 'results': logs})
+    elif request.method == 'POST':
+        # 새로운 POST 로직 - 운동 완료 기록 생성
+        try:
+            data = request.data
+            
+            # 필수 필드 검증
+            if not data.get('routine_id'):
+                return Response({
+                    'error': 'routine_id is required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 운동 로그 생성
+            workout_log = {
+                'id': random.randint(1000, 9999),
+                'routine_id': data.get('routine_id'),
+                'user_id': request.user.id if request.user.is_authenticated else 'guest',
+                'date': data.get('date', datetime.now().strftime('%Y-%m-%d')),
+                'duration': data.get('duration', 30),
+                'calories_burned': data.get('duration', 30) * 8,  # 대략적인 칼로리 계산
+                'notes': data.get('notes', ''),
+                'created_at': datetime.now().isoformat(),
+                'is_guest': not request.user.is_authenticated
+            }
+            
+            # 세션에 저장 (임시 저장소)
+            if not hasattr(request.session, '_workout_logs'):
+                request.session._workout_logs = []
+            request.session._workout_logs.append(workout_log)
+            
+            return Response(workout_log, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET', 'OPTIONS'])
 @permission_classes([AllowAny])
@@ -760,14 +798,54 @@ def social_unread_count(request):
         return Response(status=status.HTTP_200_OK)
     return Response({'unread_count': 0})
 
-@api_view(['GET', 'OPTIONS'])
+@api_view(['GET', 'POST', 'OPTIONS'])
 @permission_classes([AllowAny])
 def social_posts_feed(request):
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
-    # social_feed와 동일한 데이터 반환
-    posts = get_social_posts()
-    return Response({'count': len(posts), 'results': posts})
+    
+    if request.method == 'GET':
+        # social_feed와 동일한 데이터 반환
+        posts = get_social_posts()
+        return Response({'count': len(posts), 'results': posts})
+    
+    elif request.method == 'POST':
+        # social_posts_create와 동일한 로직
+        try:
+            data = request.data
+            content = data.get('content', '')
+            workout_session_id = data.get('workout_session_id')
+            workout_log_id = data.get('workout_log_id')
+            image_url = data.get('image_url')
+            
+            # 새 게시물 생성
+            new_post = {
+                'id': random.randint(100, 999),
+                'user': {
+                    'id': request.user.id if request.user.is_authenticated else 'guest',
+                    'username': request.user.username if request.user.is_authenticated else 'Guest',
+                    'profile_image': None
+                },
+                'content': content,
+                'image_url': image_url,
+                'workout_session': workout_session_id,
+                'workout_log_id': workout_log_id,
+                'likes': 0,
+                'comments': [],
+                'created_at': datetime.now().isoformat(),
+                'is_liked': False
+            }
+            
+            return Response({
+                'success': True,
+                'post': new_post
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST', 'OPTIONS'])
 @permission_classes([AllowAny])
@@ -1026,6 +1104,71 @@ def social_notifications_unread_count(request):
     return Response({
         'unread_count': random.randint(0, 5)  # 모의 데이터
     })
+
+# workout-logs POST를 위한 새 함수
+@api_view(['POST', 'OPTIONS'])
+@permission_classes([AllowAny])
+def workout_logs_create(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    try:
+        data = request.data
+        
+        # 필수 필드 검증
+        if not data.get('routine_id'):
+            return Response({
+                'error': 'routine_id is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 운동 로그 생성
+        workout_log = {
+            'id': random.randint(1000, 9999),
+            'routine_id': data.get('routine_id'),
+            'routine_name': data.get('routine_name', '운동 루틴'),
+            'user_id': request.user.id if request.user.is_authenticated else 'guest',
+            'date': data.get('date', datetime.now().strftime('%Y-%m-%d')),
+            'duration': data.get('duration', 30),
+            'calories_burned': data.get('duration', 30) * 8,  # 대략적인 칼로리 계산
+            'notes': data.get('notes', ''),
+            'created_at': datetime.now().isoformat(),
+            'is_guest': not request.user.is_authenticated,
+            'exercises_completed': data.get('exercises_completed', 0),
+            'total_sets': data.get('total_sets', 0)
+        }
+        
+        # 세션에 저장 (임시 저장소)
+        if not hasattr(request.session, '_workout_logs'):
+            request.session._workout_logs = []
+        request.session._workout_logs.append(workout_log)
+        
+        # 소셜 공유 처리
+        share_to_social = data.get('share_to_social', False)
+        social_post = None
+        
+        if share_to_social:
+            user_id = request.user.id if request.user.is_authenticated else 'guest'
+            content = data.get('social_content', '')
+            
+            # 소셜 포스트 생성
+            social_post = social_workout_service.create_workout_post(
+                user_id=user_id,
+                workout_log_id=workout_log['id'],
+                content=content
+            )
+        
+        # 응답 데이터
+        response_data = {
+            'workout_log': workout_log,
+            'social_post': social_post
+        }
+        
+        return Response(response_data, status=status.HTTP_201_CREATED)
+        
+    except Exception as e:
+        return Response({
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # AI 기반 운동 추천
 @api_view(['POST', 'OPTIONS'])
