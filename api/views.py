@@ -22,6 +22,8 @@ from .services.health_consultation import get_health_consultation
 from .services.social_workout_service import social_workout_service
 from .ai_service import get_chatbot
 from .models import UserProfile
+# Music API import
+from .music.views import get_ai_keywords, youtube_search as music_youtube_search, save_feedback as music_save_feedback
 
 # 기존 기본 API들
 @api_view(['GET'])
@@ -380,46 +382,8 @@ def guest_recommendations_daily(request):
     
     return Response(recommendations)
 
-@api_view(['POST', 'OPTIONS'])
-@permission_classes([AllowAny])
-def youtube_search(request):
-    if request.method == 'OPTIONS':
-        return Response(status=status.HTTP_200_OK)
-    
-    try:
-        data = json.loads(request.body) if request.body else {}
-        query = data.get('query', '')
-        max_results = data.get('maxResults', 5)
-        
-        # YouTube API를 통한 검색은 get_workout_videos 함수를 활용
-        result = get_workout_videos(query, 'all')
-        
-        if 'error' in result:
-            return Response(result, status=status.HTTP_502_BAD_GATEWAY)
-            
-        # 결과를 프론트엔드가 기대하는 형식으로 변환
-        items = result.get('items', [])
-        formatted_items = []
-        for item in items[:max_results]:
-            formatted_items.append({
-                'id': {'videoId': item['id']},
-                'snippet': {
-                    'title': item['title'],
-                    'channelTitle': item.get('channel', 'Unknown'),
-                    'thumbnails': {
-                        'medium': {
-                            'url': item.get('thumbnail', '')
-                        }
-                    }
-                }
-            })
-        
-        return Response({'items': formatted_items})
-        
-    except Exception as e:
-        return Response({
-            'error': f'YouTube search error: {str(e)}'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+# youtube_search는 이제 music.views의 youtube_search를 사용
+youtube_search = music_youtube_search
 
 # 새로운 API 엔드포인트들
 @api_view(['GET', 'OPTIONS'])
@@ -448,65 +412,8 @@ def workout_routines(request):
     # 프론트엔드가 배열을 기대하므로 배열로 반환
     return Response(ROUTINE_DATA)
 
-@api_view(['GET', 'POST', 'OPTIONS'])
-@permission_classes([AllowAny])
-def youtube_music_recommendations(request):
-    if request.method == 'OPTIONS':
-        return Response(status=status.HTTP_200_OK)
-    
-    if request.method == 'GET':
-        workout_type = request.GET.get('workout_type', 'general')
-        result = get_youtube_music(workout_type)
-    elif request.method == 'POST':
-        data = json.loads(request.body) if request.body else {}
-        exercise = data.get('exercise', 'general')
-        mood = data.get('mood', 'energetic')
-        
-        # 프론트엔드가 keywords를 기대하는 경우
-        if 'exercise' in data and 'mood' in data and (request.path.endswith('/youtube/music/') or request.path.endswith('/ai-keywords/')):
-            # AI 키워드 생성 (여기서는 간단하게 처리)
-            keywords = []
-            
-            # 운동 타입별 키워드
-            exercise_keywords = {
-                'running': ['BTS', 'BLACKPINK', 'Dua Lipa', 'The Weeknd', 'David Guetta'],
-                'walking': ['Ed Sheeran', 'Billie Eilish', 'Taylor Swift', 'Maroon 5'],
-                'yoga': ['Enya', 'Ludovico Einaudi', 'Yiruma', 'Nature Sounds'],
-                'strength': ['Eminem', 'Kanye West', 'DMX', 'Linkin Park', 'Skrillex'],
-                'cycling': ['Calvin Harris', 'Swedish House Mafia', 'Avicii', 'Martin Garrix']
-            }
-            
-            # 기분별 키워드
-            mood_keywords = {
-                'energetic': ['Uptown Funk', 'Can\'t Stop the Feeling', 'Levitating', 'Blinding Lights'],
-                'calm': ['Someone Like You', 'Perfect', 'All of Me', 'Thinking Out Loud'],
-                'focused': ['Lose Yourself', 'In the End', 'Numb', 'Radioactive'],
-                'relaxed': ['Sunset Lover', 'Ocean Drive', 'Stay', 'Shallow'],
-                'pumped': ['Thunder', 'Warriors', 'Remember the Name', 'Till I Collapse']
-            }
-            
-            # 기본 키워드 추가
-            if exercise in exercise_keywords:
-                keywords.extend(exercise_keywords[exercise])
-            if mood in mood_keywords:
-                keywords.extend(mood_keywords[mood])
-            
-            # 추가 키워드
-            keywords.extend(['official music video', 'audio', 'lyrics'])
-            
-            return Response({
-                'keywords': keywords[:6],  # 최대 6개 키워드
-                'exercise': exercise,
-                'mood': mood
-            })
-        
-        # 일반적인 음악 추천 요청
-        workout_type = f"{exercise}_{mood}"
-        result = get_youtube_music(workout_type)
-    
-    if 'error' in result:
-        return Response(result, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-    return Response(result)
+# youtube_music_recommendations는 이제 music.views의 get_ai_keywords를 사용
+youtube_music_recommendations = get_ai_keywords
 
 @api_view(['GET', 'OPTIONS'])
 @permission_classes([AllowAny])
@@ -1368,30 +1275,8 @@ def ai_nutrition_recommendation(request):
             'error': f'Nutrition recommendation error: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-# 음악 피드백 저장
-@api_view(['POST', 'OPTIONS'])
-@permission_classes([AllowAny])
-def music_save_feedback(request):
-    if request.method == 'OPTIONS':
-        return Response(status=status.HTTP_200_OK)
-    
-    try:
-        data = request.data
-        feedback = data.get('feedback', '')
-        songs_played = data.get('songs_played', [])
-        workout_id = data.get('workout_id')
-        
-        # 여기서는 간단히 성공 응답만 반환
-        # 실제로는 데이터베이스에 저장해야 함
-        return Response({
-            'success': True,
-            'message': f'Feedback {feedback} saved for {len(songs_played)} songs'
-        })
-        
-    except Exception as e:
-        return Response({
-            'error': f'Save feedback error: {str(e)}'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+# 음악 피드백 저장은 이제 music.views의 save_feedback를 사용
+music_save_feedback = music_save_feedback
 
 # 누락된 운동 관련 엔드포인트
 @api_view(['GET', 'OPTIONS'])
