@@ -8,6 +8,9 @@ from rest_framework.response import Response
 import json
 from datetime import datetime, timedelta
 import random
+import logging
+
+logger = logging.getLogger(__name__)
 
 # 서비스 모듈 import
 from .services.data import HEALTH_OPTIONS, EXERCISE_DATA, ROUTINE_DATA
@@ -1132,6 +1135,77 @@ def workout_videos_list(request):
     
     return Response(result)
 
+# GIF가 있는 운동만 포함
+VALID_EXERCISES_WITH_GIF = {
+    "숄더프레스 머신": {"muscle_group": "어깨", "gif_url": "https://media1.tenor.com/m/vFJSvh8AvhAAAAAd/a1.gif"},
+    "랙풀": {"muscle_group": "등", "gif_url": "https://media1.tenor.com/m/U-KW3hhwhxcAAAAd/gym.gif"},
+    "런지": {"muscle_group": "하체", "gif_url": "https://media1.tenor.com/m/K8EFQDHYz3UAAAAd/gym.gif"},
+    "덤벨런지": {"muscle_group": "하체", "gif_url": "https://media1.tenor.com/m/sZ7VwZ6jrbcAAAAd/gym.gif"},
+    "핵스쿼트": {"muscle_group": "하체", "gif_url": "https://media1.tenor.com/m/jiqHF0MkHeYAAAAd/gym.gif"},
+    "바벨스쿼트": {"muscle_group": "하체", "gif_url": "https://media1.tenor.com/m/pdMmsiutWkcAAAAd/gym.gif"},
+    "레그익스텐션": {"muscle_group": "하체", "gif_url": "https://media1.tenor.com/m/bqKtsSuqilQAAAAd/gym.gif"},
+    "레그컬": {"muscle_group": "하체", "gif_url": "https://media1.tenor.com/m/fj_cZPprAyMAAAAd/gym.gif"},
+    "레그프레스": {"muscle_group": "하체", "gif_url": "https://media1.tenor.com/m/yBaS_oBgidsAAAAd/gym.gif"},
+    "체스트프레스 머신": {"muscle_group": "가슴", "gif_url": "https://media1.tenor.com/m/3bJRUkfLN3EAAAAd/supino-na-maquina.gif"},
+    "케이블 로프 트라이셉스푸시다운": {"muscle_group": "팔", "gif_url": "https://media1.tenor.com/m/mbebKudZjxYAAAAd/tr%C3%ADceps-pulley.gif"},
+    "덤벨플라이": {"muscle_group": "가슴", "gif_url": "https://media1.tenor.com/m/oJXOnsC72qMAAAAd/crussifixo-no-banco-com-halteres.gif"},
+    "인클라인 푸시업": {"muscle_group": "가슴", "gif_url": "https://media1.tenor.com/m/e45GckrMBLEAAAAd/flex%C3%A3o-inclinada-no-banco.gif"},
+    "케이블 로프 오버헤드 익스텐션": {"muscle_group": "팔", "gif_url": "https://media1.tenor.com/m/Vq6LrVGUAKIAAAAd/tr%C3%ADceps-fraces-na-polia.gif"},
+    "밀리터리 프레스": {"muscle_group": "어깨", "gif_url": "https://media1.tenor.com/m/CV1FfGVNpdcAAAAd/desenvolvimento-militar.gif"},
+    "사이드레터럴레이즈": {"muscle_group": "어깨", "gif_url": "https://media1.tenor.com/m/-OavRqpxSaEAAAAd/eleva%C3%A7%C3%A3o-lateral.gif"},
+    "삼두(맨몸)": {"muscle_group": "팔", "gif_url": "https://media1.tenor.com/m/iGyfarCUXe8AAAAd/tr%C3%ADceps-mergulho.gif"},
+    "랫풀다운": {"muscle_group": "등", "gif_url": "https://media1.tenor.com/m/PVR9ra9tAwcAAAAd/pulley-pegada-aberta.gif"},
+    "케이블 스트레이트바 트라이셉스 푸시다운": {"muscle_group": "팔", "gif_url": "https://media1.tenor.com/m/sxDebEfnoGcAAAAd/triceps-na-polia-alta.gif"},
+    "머신 로우": {"muscle_group": "등", "gif_url": "https://media1.tenor.com/m/ft6FHrqty-8AAAAd/remada-pronada-maquina.gif"},
+    "케이블 로우": {"muscle_group": "등", "gif_url": "https://media1.tenor.com/m/vy_b35185M0AAAAd/remada-baixa-triangulo.gif"},
+    "라잉 트라이셉스": {"muscle_group": "팔", "gif_url": "https://media1.tenor.com/m/ToAHkKHVQP4AAAAd/on-lying-triceps-al%C4%B1n-press.gif"},
+    "바벨 프리쳐 컬": {"muscle_group": "팔", "gif_url": "https://media1.tenor.com/m/m2Dfyh507FQAAAAd/8preacher-curl.gif"},
+    "바벨로우": {"muscle_group": "등", "gif_url": "https://media1.tenor.com/m/AYJ_bNXDvoUAAAAd/workout-muscles.gif"},
+    "풀업": {"muscle_group": "등", "gif_url": "https://media1.tenor.com/m/bOA5VPeUz5QAAAAd/noequipmentexercisesmen-pullups.gif"},
+    "덤벨 체스트 프레스": {"muscle_group": "가슴", "gif_url": "https://media1.tenor.com/m/nxJqRDCmt0MAAAAd/supino-reto.gif"},
+    "덤벨 컬": {"muscle_group": "팔", "gif_url": "https://media1.tenor.com/m/pXKe1wAZOlQAAAAd/b%C3%ADceps.gif"},
+    "덤벨 트라이셉스 익스텐션": {"muscle_group": "팔", "gif_url": "https://media1.tenor.com/m/V3J-mg9gH0kAAAAd/seated-dumbbell-triceps-extension.gif"},
+    "덤벨 고블릿 스쿼트": {"muscle_group": "하체", "gif_url": "https://media1.tenor.com/m/yvyaUSnqMXQAAAAd/agachamento-goblet-com-haltere.gif"},
+    "컨센트레이션컬": {"muscle_group": "팔", "gif_url": "https://media1.tenor.com/m/jaX3EUxaQGkAAAAd/rosca-concentrada-no-banco.gif"},
+    "해머컬": {"muscle_group": "팔", "gif_url": "https://media1.tenor.com/m/8T_oLOn1XJwAAAAd/rosca-alternada-com-halteres.gif"},
+    "머신 이두컬": {"muscle_group": "팔", "gif_url": "https://media1.tenor.com/m/DJ-GuvjNCwgAAAAd/bicep-curl.gif"},
+}
+
+# 부위별 운동 목록
+VALID_EXERCISES_BY_GROUP = {
+    "가슴": ["체스트프레스 머신", "덤벨플라이", "인클라인 푸시업", "덤벨 체스트 프레스"],
+    "등": ["랙풀", "랫풀다운", "머신 로우", "케이블 로우", "바벨로우", "풀업"],
+    "하체": ["런지", "덤벨런지", "핵스쿼트", "바벨스쿼트", "레그익스텐션", "레그컬", "레그프레스", "덤벨 고블릿 스쿼트"],
+    "어깨": ["숄더프레스 머신", "밀리터리 프레스", "사이드레터럴레이즈"],
+    "팔": ["케이블 로프 트라이셉스푸시다운", "케이블 스트레이트바 트라이셉스 푸시다운", "케이블 로프 오버헤드 익스텐션", 
+         "라잉 트라이셉스", "덤벨 트라이셉스 익스텐션", "삼두(맨몸)", "바벨 프리쳐 컬", "덤벨 컬", "해머컬", "컨센트레이션컬", "머신 이두컬"],
+}
+
+# 난이도별 추천 운동
+EXERCISES_BY_LEVEL = {
+    "초급": {
+        "가슴": ["체스트프레스 머신", "인클라인 푸시업"],
+        "등": ["랫풀다운", "머신 로우", "케이블 로우"],
+        "하체": ["레그프레스", "레그익스텐션", "레그컬", "런지"],
+        "어깨": ["숄더프레스 머신", "사이드레터럴레이즈"],
+        "팔": ["덤벨 컬", "머신 이두컬", "케이블 로프 트라이셉스푸시다운"],
+    },
+    "중급": {
+        "가슴": ["덤벨 체스트 프레스", "덤벨플라이"],
+        "등": ["바벨로우", "랙풀", "풀업"],
+        "하체": ["바벨스쿼트", "덤벨런지", "핵스쿼트", "덤벨 고블릿 스쿼트"],
+        "어깨": ["밀리터리 프레스", "사이드레터럴레이즈"],
+        "팔": ["바벨 프리쳐 컬", "해머컬", "라잉 트라이셉스", "삼두(맨몸)"],
+    },
+    "상급": {
+        "가슴": ["덤벨 체스트 프레스", "덤벨플라이", "체스트프레스 머신"],
+        "등": ["바벨로우", "풀업", "랙풀"],
+        "하체": ["바벨스쿼트", "핵스쿼트", "런지", "덤벨런지"],
+        "어깨": ["밀리터리 프레스", "숄더프레스 머신"],
+        "팔": ["바벨 프리쳐 컬", "컨센트레이션컬", "케이블 로프 오버헤드 익스텐션"],
+    }
+}
+
 @api_view(['POST', 'OPTIONS'])
 @permission_classes([AllowAny])
 def ai_workout(request):
@@ -1140,77 +1214,221 @@ def ai_workout(request):
     
     try:
         data = request.data
-        muscle_group = data.get('muscle_group', '전신')  # exercise -> muscle_group
-        level = data.get('level', '초급')  # experience -> level
+        muscle_group = data.get('muscle_group', '전신')
+        level = data.get('level', '초급')
         duration = data.get('duration', 30)
         equipment_available = data.get('equipment_available', True)
         specific_goals = data.get('specific_goals', '')
         
-        # 간단한 루틴 생성 로직
-        import random
-        from datetime import datetime
+        # 게스트 사용자인지 확인
+        is_guest = not request.user.is_authenticated
         
-        # 근육군별 예시 운동
-        exercises_by_muscle = {
-            '가슴': ['푸시업', '벤치프레스', '덤벨 플라이'],
-            '등': ['풀업', '레트 풀다운', '원암 로우'],
-            '하체': ['스쿼트', '런지', '레그 프레스'],
-            '어깨': ['쇼더 프레스', '사이드 레터럴 레이즈', '프론트 레이즈'],
-            '팔': ['바이셉 컴', '트라이셉 익스텐션', '해머 컴'],
-            '복근': ['크런치', '플랭크', '레그 레이즈'],
-            '전신': ['버피', '마운틴 클라이머', '점핑 잭']
-        }
+        # 게스트는 초급, 중급만 이용 가능
+        if is_guest and level == "상급":
+            level = "중급"
         
-        selected_exercises = exercises_by_muscle.get(muscle_group, ['푸시업', '스쿼트', '플랭크'])
+        # 유효한 운동 목록 가져오기
+        if muscle_group == "전신":
+            # 전신 운동인 경우 각 부위에서 골고루 선택
+            if level == "초급":
+                available_exercises = ["체스트프레스 머신", "랫풀다운", "레그프레스", "숄더프레스 머신", "덤벨 컬"]
+            else:  # 중급
+                available_exercises = ["덤벨 체스트 프레스", "바벨로우", "바벨스쿼트", "밀리터리 프레스", "해머컬"]
+        elif muscle_group == "복근":
+            # 복근은 GIF가 있는 운동이 없으므로 다른 부위 운동으로 대체
+            available_exercises = ["런지", "레그익스텐션", "레그컬"]
+        elif muscle_group in EXERCISES_BY_LEVEL.get(level, {}):
+            available_exercises = EXERCISES_BY_LEVEL[level][muscle_group]
+        elif muscle_group in VALID_EXERCISES_BY_GROUP:
+            available_exercises = VALID_EXERCISES_BY_GROUP[muscle_group][:5] if is_guest else VALID_EXERCISES_BY_GROUP[muscle_group]
+        else:
+            # 기본값
+            available_exercises = ["체스트프레스 머신", "랫풀다운", "레그프레스"]
         
-        # 레벨에 따른 세트/반복 수 조정
-        level_config = {
-            '초급': {'sets': 3, 'reps': 10},
-            '중급': {'sets': 4, 'reps': 12},
-            '상급': {'sets': 5, 'reps': 15}
-        }
+        # 장비가 없는 경우 맨몸 운동만 선택
+        if not equipment_available:
+            bodyweight_exercises = ["인클라인 푸시업", "풀업", "런지", "삼두(맨몸)"]
+            available_exercises = [ex for ex in available_exercises if ex in bodyweight_exercises]
+            
+            # 맨몸 운동이 부족한 경우 추가
+            if len(available_exercises) < 3:
+                available_exercises = ["인클라인 푸시업", "런지", "삼두(맨몸)"]
         
-        config = level_config.get(level, level_config['초급'])
+        # 운동 시간에 따른 운동 개수 결정
+        if duration <= 30:
+            num_exercises = 3
+        else:
+            num_exercises = min(4 if is_guest else 6, (duration // 15))
         
-        # 루틴 생성
-        routine_exercises = []
-        for i, exercise_name in enumerate(selected_exercises[:3]):  # 최대 3개 운동
-            routine_exercises.append({
-                'id': i + 1,
+        # 운동 선택 (중복 제거)
+        selected_exercises = []
+        used_exercises = set()
+        
+        for exercise_name in available_exercises:
+            if exercise_name not in used_exercises:
+                selected_exercises.append(exercise_name)
+                used_exercises.add(exercise_name)
+                if len(selected_exercises) >= num_exercises:
+                    break
+        
+        # 운동이 부족한 경우 다른 운동 추가
+        if len(selected_exercises) < num_exercises:
+            # 같은 근육군의 다른 운동들 추가
+            if muscle_group in VALID_EXERCISES_BY_GROUP:
+                for ex in VALID_EXERCISES_BY_GROUP[muscle_group]:
+                    if ex not in used_exercises and len(selected_exercises) < num_exercises:
+                        selected_exercises.append(ex)
+                        used_exercises.add(ex)
+            
+            # 그래도 부족하면 전체 운동에서 추가
+            if len(selected_exercises) < num_exercises:
+                all_exercises = list(VALID_EXERCISES_WITH_GIF.keys())
+                import random
+                random.shuffle(all_exercises)
+                for ex in all_exercises:
+                    if ex not in used_exercises and len(selected_exercises) < num_exercises:
+                        selected_exercises.append(ex)
+                        used_exercises.add(ex)
+        
+        # AI를 사용한 루틴 생성
+        chatbot = get_chatbot()
+        exercises_list = ", ".join(selected_exercises)
+        
+        prompt = f"""
+        운동 루틴을 생성해주세요.
+        - 운동 대상 부위: {muscle_group}
+        - 운동 난이도: {level}
+        - 운동 시간: {duration}분
+        - 장비 사용 가능: {'예' if equipment_available else '아니오'}
+        - 사용 가능한 운동: {exercises_list}
+        
+        각 운동마다 세트, 반복 횟수, 휴식 시간을 포함해서 알려주세요.
+        난이도에 맞게 세트수와 반복수를 조절하세요:
+        - 초급: 3세트, 10-12회
+        - 중급: 3-4세트, 8-12회
+        - 상급: 4-5세트, 6-10회
+        
+        JSON 형식으로 답변해주세요:
+        {{
+            "routine_name": "루틴 이름",
+            "exercises": [
+                {{
+                    "name": "운동 이름",
+                    "sets": 세트 수,
+                    "reps": 반복 횟수,
+                    "rest_seconds": 휴식 시간(초),
+                    "notes": "수행 팁"
+                }}
+            ],
+            "total_duration": 예상 시간
+        }}
+        """
+        
+        try:
+            # AI 응답 받기
+            response = chatbot.get_health_consultation(
+                user_data={'user_id': request.user.id if request.user.is_authenticated else 'guest'},
+                question=prompt
+            )
+            
+            # JSON 파싱 시도
+            import json
+            content = response.get('response', '')
+            if '```json' in content:
+                content = content.split('```json')[1].split('```')[0].strip()
+            elif '```' in content:
+                content = content.split('```')[1].split('```')[0].strip()
+            
+            try:
+                routine_data = json.loads(content)
+            except:
+                # JSON 파싱 실패 시 기본 루틴 생성
+                raise ValueError("JSON parsing failed")
+                
+        except:
+            # AI 실패 시 기본 루틴 생성
+            routine_data = {
+                "routine_name": f"{muscle_group} {level} 루틴",
+                "exercises": [],
+                "total_duration": duration
+            }
+            
+            # 기본 세트/반복수 설정
+            if level == "초급":
+                sets, reps = 3, 12
+            else:  # 중급
+                sets, reps = 3, 10
+            
+            for exercise_name in selected_exercises[:num_exercises]:
+                routine_data["exercises"].append({
+                    "name": exercise_name,
+                    "sets": sets,
+                    "reps": reps,
+                    "rest_seconds": 60 if level == "초급" else 75,
+                    "notes": "정확한 자세로 천천히 수행하세요"
+                })
+        
+        # 루틴 데이터 준비
+        exercises_with_details = []
+        added_exercises = set()
+        
+        for exercise_data in routine_data['exercises']:
+            exercise_name = exercise_data['name']
+            
+            # 유효한 운동인지 확인 및 중복 체크
+            if exercise_name not in VALID_EXERCISES_WITH_GIF or exercise_name in added_exercises:
+                continue
+            
+            exercise_info = VALID_EXERCISES_WITH_GIF[exercise_name]
+            added_exercises.add(exercise_name)
+            
+            exercises_with_details.append({
+                'id': len(exercises_with_details) + 1,
                 'exercise': {
-                    'id': i + 1,
+                    'id': len(exercises_with_details) + 1,
                     'name': exercise_name,
-                    'muscle_group': muscle_group,
-                    'gif_url': None,
-                    'default_sets': config['sets'],
-                    'default_reps': config['reps'],
+                    'muscle_group': exercise_info['muscle_group'],
+                    'gif_url': exercise_info['gif_url'],
+                    'default_sets': exercise_data['sets'],
+                    'default_reps': exercise_data['reps'],
                     'exercise_type': 'strength',
                     'description': f'{exercise_name} 운동'
                 },
-                'order': i + 1,
-                'sets': config['sets'],
-                'reps': config['reps'],
+                'order': len(exercises_with_details) + 1,
+                'sets': exercise_data['sets'],
+                'reps': exercise_data['reps'],
                 'recommended_weight': None,
-                'notes': '정확한 자세로 천천히 수행하세요'
+                'notes': exercise_data.get('notes', '정확한 자세로 천천히 수행하세요')
             })
         
         # AI 생성 루틴 객체
         routine = {
             'id': random.randint(1000, 9999),  # 임시 ID
-            'name': f'AI {muscle_group} 루틴 ({level})',
-            'exercises': routine_exercises,
+            'name': routine_data['routine_name'],
+            'exercises': exercises_with_details,
             'level': level,
             'is_ai_generated': True,
             'created_at': datetime.now().isoformat(),
-            'updated_at': datetime.now().isoformat()
+            'updated_at': datetime.now().isoformat(),
+            'is_guest': is_guest
         }
         
-        return Response({
+        response_data = {
             'success': True,
-            'routine': routine
-        })
+            'routine': routine,
+            'estimated_duration': routine_data.get('total_duration', duration)
+        }
+        
+        if is_guest:
+            response_data['guest_info'] = {
+                'message': '더 많은 기능을 원하시면 회원가입을 해주세요.',
+                'limited_features': ['초급, 중급 운동만 이용 가능', '최대 4개 운동까지 추천']
+            }
+        
+        return Response(response_data)
         
     except Exception as e:
+        logger.error(f'AI workout error: {str(e)}')
         return Response({
             'success': False,
             'error': f'AI workout error: {str(e)}'
