@@ -58,7 +58,75 @@ EXERCISE_DATA = [
     }
 ]
 
-# 루틴 데이터
+# 운동별 상세 데이터
+EXERCISE_DETAILS = {
+    '워밍업': {
+        'id': 'warmup',
+        'category': 'warmup',
+        'description': '가벼운 스트레칭과 준비운동',
+        'muscle_groups': ['전신'],
+        'equipment_needed': [],
+        'calories_per_minute': 3.0
+    },
+    '스쿼트': {
+        'id': 'squat',
+        'category': 'strength',
+        'description': '하체 근육을 강화하는 기본 운동',
+        'muscle_groups': ['대퇴사두근', '둔근', '햄스트링'],
+        'equipment_needed': [],
+        'calories_per_minute': 6.5
+    },
+    '푸시업': {
+        'id': 'pushup',
+        'category': 'strength',
+        'description': '상체 근육을 강화하는 기본 운동',
+        'muscle_groups': ['가슴', '어깨', '삼두근'],
+        'equipment_needed': [],
+        'calories_per_minute': 8.5
+    },
+    '플랭크': {
+        'id': 'plank',
+        'category': 'core',
+        'description': '코어 근육을 강화하는 등척성 운동',
+        'muscle_groups': ['복근', '코어'],
+        'equipment_needed': [],
+        'calories_per_minute': 4.0
+    },
+    '쿨다운': {
+        'id': 'cooldown',
+        'category': 'cooldown',
+        'description': '가벼운 스트레칭으로 마무리',
+        'muscle_groups': ['전신'],
+        'equipment_needed': [],
+        'calories_per_minute': 2.5
+    },
+    '버피': {
+        'id': 'burpee',
+        'category': 'cardio',
+        'description': '전신을 사용하는 고강도 운동',
+        'muscle_groups': ['전신'],
+        'equipment_needed': [],
+        'calories_per_minute': 12.0
+    },
+    '마운틴 클라이머': {
+        'id': 'mountain_climber',
+        'category': 'cardio',
+        'description': '코어와 심폐지구력을 향상시키는 운동',
+        'muscle_groups': ['복근', '코어', '어깨'],
+        'equipment_needed': [],
+        'calories_per_minute': 10.0
+    },
+    '점핑잭': {
+        'id': 'jumping_jack',
+        'category': 'cardio',
+        'description': '전신 유산소 운동',
+        'muscle_groups': ['전신'],
+        'equipment_needed': [],
+        'calories_per_minute': 8.0
+    }
+}
+
+# 루틴 데이터 (운동 상세 정보 포함)
 ROUTINE_DATA = [
     {
         'id': 1,
@@ -67,11 +135,38 @@ ROUTINE_DATA = [
         'total_duration': 45,
         'difficulty': 'easy',
         'exercises': [
-            {'name': '워밍업', 'duration': 5},
-            {'name': '스쿼트', 'sets': 3, 'reps': 15},
-            {'name': '푸시업', 'sets': 3, 'reps': 10},
-            {'name': '플랭크', 'duration': 30},
-            {'name': '쿨다운', 'duration': 5}
+            {
+                'name': '워밍업',
+                'duration': 5,
+                'order': 1,
+                'exercise': EXERCISE_DETAILS['워밍업']
+            },
+            {
+                'name': '스쿼트',
+                'sets': 3,
+                'reps': 15,
+                'order': 2,
+                'exercise': EXERCISE_DETAILS['스쿼트']
+            },
+            {
+                'name': '푸시업',
+                'sets': 3,
+                'reps': 10,
+                'order': 3,
+                'exercise': EXERCISE_DETAILS['푸시업']
+            },
+            {
+                'name': '플랭크',
+                'duration': 30,
+                'order': 4,
+                'exercise': EXERCISE_DETAILS['플랭크']
+            },
+            {
+                'name': '쿨다운',
+                'duration': 5,
+                'order': 5,
+                'exercise': EXERCISE_DETAILS['쿨다운']
+            }
         ]
     },
     {
@@ -81,11 +176,39 @@ ROUTINE_DATA = [
         'total_duration': 30,
         'difficulty': 'hard',
         'exercises': [
-            {'name': '워밍업', 'duration': 5},
-            {'name': '버피', 'sets': 4, 'duration': 45},
-            {'name': '마운틴 클라이머', 'sets': 4, 'duration': 45},
-            {'name': '점핑잭', 'sets': 4, 'duration': 45},
-            {'name': '쿨다운', 'duration': 5}
+            {
+                'name': '워밍업',
+                'duration': 5,
+                'order': 1,
+                'exercise': EXERCISE_DETAILS['워밍업']
+            },
+            {
+                'name': '버피',
+                'sets': 4,
+                'duration': 45,
+                'order': 2,
+                'exercise': EXERCISE_DETAILS['버피']
+            },
+            {
+                'name': '마운틴 클라이머',
+                'sets': 4,
+                'duration': 45,
+                'order': 3,
+                'exercise': EXERCISE_DETAILS['마운틴 클라이머']
+            },
+            {
+                'name': '점핑잭',
+                'sets': 4,
+                'duration': 45,
+                'order': 4,
+                'exercise': EXERCISE_DETAILS['점핑잭']
+            },
+            {
+                'name': '쿨다운',
+                'duration': 5,
+                'order': 5,
+                'exercise': EXERCISE_DETAILS['쿨다운']
+            }
         ]
     }
 ]

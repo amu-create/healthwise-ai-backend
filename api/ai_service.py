@@ -37,7 +37,12 @@ class HealthAIChatbot:
             if not api_key:
                 raise ValueError("OpenAI API key not found")
                 
-            self.client = OpenAI(api_key=api_key)
+            # OpenAI 클라이언트 생성 시 proxy 설정 제거
+            self.client = OpenAI(
+                api_key=api_key,
+                # proxy 관련 설정을 명시적으로 비활성화
+                http_client=None
+            )
             
             # 캐시 설정
             self.cache_timeout = 3600  # 1시간
