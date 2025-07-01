@@ -461,7 +461,46 @@ def youtube_music_recommendations(request):
         data = json.loads(request.body) if request.body else {}
         exercise = data.get('exercise', 'general')
         mood = data.get('mood', 'energetic')
-        # 운동과 기분을 조합하여 workout_type 생성
+        
+        # 프론트엔드가 keywords를 기대하는 경우
+        if 'exercise' in data and 'mood' in data and request.path.endswith('/youtube/music/'):
+            # AI 키워드 생성 (여기서는 간단하게 처리)
+            keywords = []
+            
+            # 운동 타입별 키워드
+            exercise_keywords = {
+                'running': ['running music', 'jogging playlist', 'cardio beats', 'marathon music'],
+                'walking': ['walking music', 'relaxed beats', 'outdoor music', 'nature sounds'],
+                'yoga': ['yoga music', 'meditation sounds', 'peaceful music', 'zen playlist'],
+                'strength': ['gym music', 'powerlifting beats', 'workout motivation', 'training music'],
+                'cycling': ['cycling music', 'spinning playlist', 'bike ride beats', 'indoor cycling']
+            }
+            
+            # 기분별 키워드
+            mood_keywords = {
+                'energetic': ['high energy', 'upbeat', 'fast tempo', 'motivational'],
+                'calm': ['relaxing', 'peaceful', 'slow tempo', 'ambient'],
+                'focused': ['concentration', 'steady rhythm', 'minimal', 'electronic'],
+                'relaxed': ['chill', 'lofi', 'smooth', 'easy listening'],
+                'pumped': ['intense', 'aggressive', 'powerful', 'adrenaline']
+            }
+            
+            # 기본 키워드 추가
+            if exercise in exercise_keywords:
+                keywords.extend(exercise_keywords[exercise])
+            if mood in mood_keywords:
+                keywords.extend(mood_keywords[mood])
+            
+            # 2024 키워드 추가
+            keywords.append('2024 playlist')
+            
+            return Response({
+                'keywords': keywords[:6],  # 최대 6개 키워드
+                'exercise': exercise,
+                'mood': mood
+            })
+        
+        # 일반적인 음악 추천 요청
         workout_type = f"{exercise}_{mood}"
         result = get_youtube_music(workout_type)
     
@@ -826,47 +865,23 @@ def social_posts_feed(request):
         return Response(status=status.HTTP_200_OK)
     
     if request.method == 'GET':
-        # social_feed와 동일한 데이터 반환
+        # feed_type 파라미터 처리
+        feed_type = request.GET.get('feed_type', 'all')
+        
+        # 피드 타입에 따른 게시물 반환
         posts = get_social_posts()
-        return Response({'count': len(posts), 'results': posts})
+        
+        # 프론트엔드가 기대하는 형식으로 응답
+        return Response({
+            'count': len(posts), 
+            'results': posts,
+            'next': None,
+            'previous': None
+        })
     
     elif request.method == 'POST':
         # social_posts_create와 동일한 로직
-        try:
-            data = request.data
-            content = data.get('content', '')
-            workout_session_id = data.get('workout_session_id')
-            workout_log_id = data.get('workout_log_id')
-            image_url = data.get('image_url')
-            
-            # 새 게시물 생성
-            new_post = {
-                'id': random.randint(100, 999),
-                'user': {
-                    'id': request.user.id if request.user.is_authenticated else 'guest',
-                    'username': request.user.username if request.user.is_authenticated else 'Guest',
-                    'profile_image': None
-                },
-                'content': content,
-                'image_url': image_url,
-                'workout_session': workout_session_id,
-                'workout_log_id': workout_log_id,
-                'likes': 0,
-                'comments': [],
-                'created_at': datetime.now().isoformat(),
-                'is_liked': False
-            }
-            
-            return Response({
-                'success': True,
-                'post': new_post
-            }, status=status.HTTP_201_CREATED)
-            
-        except Exception as e:
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
+        return social_posts_create(request)
 
 @api_view(['POST', 'OPTIONS'])
 @permission_classes([AllowAny])
@@ -875,18 +890,26 @@ def social_posts_create(request):
         return Response(status=status.HTTP_200_OK)
     
     try:
-        data = request.data
-        content = data.get('content', '')
-        workout_session_id = data.get('workout_session_id')
-        workout_log_id = data.get('workout_log_id')
-        image_url = data.get('image_url')
+        # multipart/form-data 처리
+        content = request.data.get('content', '')
+        visibility = request.data.get('visibility', 'public')
+        media_file = request.FILES.get('media_file')
+        workout_session_id = request.data.get('workout_session_id')
+        workout_log_id = request.data.get('workout_log_id')
         
         # 컨텐츠가 비어있으면 에러
-        if not content and not image_url:
+        if not content and not media_file:
             return Response({
                 'success': False,
                 'error': 'Content or image is required'
             }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 파일 처리 (media_file이 있는 경우)
+        image_url = None
+        if media_file:
+            # 여기서는 간단히 URL만 생성 (실제로는 S3 등에 업로드 필요)
+            image_url = f'/media/posts/{media_file.name}'
+            # TODO: 실제 파일 업로드 처리
         
         # 새 게시물 생성
         new_post = {
@@ -894,18 +917,26 @@ def social_posts_create(request):
             'user': {
                 'id': request.user.id if request.user.is_authenticated else 'guest',
                 'username': request.user.username if request.user.is_authenticated else 'Guest',
-                'profile_image': None
+                'profile_image': None,
+                'profile_picture_url': None
             },
             'content': content,
             'image_url': image_url,
+            'media_file': image_url,  # 프론트엔드가 media_file로 기대할 수 있음
+            'visibility': visibility,
             'workout_session': workout_session_id,
             'workout_log_id': workout_log_id,
-            'likes': 0,
+            'likes': [],
             'comments': [],
             'created_at': datetime.now().isoformat(),
             'is_liked': False,
+            'is_saved': False,
             'likes_count': 0,
-            'comments_count': 0
+            'comments_count': 0,
+            'shares_count': 0,
+            'reactions': [],
+            'tags': [],
+            'mentions': []
         }
         
         # 성공 응답 - AI 운동 루틴처럼 직접 데이터 반환
@@ -1242,6 +1273,44 @@ def ai_workout_recommendation(request):
         return Response({
             'error': f'Workout recommendation error: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# 소셜 피드 - 인기 게시물
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([AllowAny])
+def social_posts_popular(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    # 인기 게시물 반환 (더 많은 좋아요를 받은 게시물)
+    posts = get_social_posts()
+    # 좋아요 수가 많은 순으로 정렬
+    posts.sort(key=lambda x: x['likes_count'], reverse=True)
+    
+    return Response({
+        'count': len(posts),
+        'results': posts,
+        'next': None,
+        'previous': None
+    })
+
+# 소셜 피드 - 추천 게시물
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([AllowAny])
+def social_posts_recommended(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    # 추천 게시물 반환 (사용자 취향에 맞는 게시물)
+    posts = get_social_posts()
+    # 여기서는 무작위로 선택
+    random.shuffle(posts)
+    
+    return Response({
+        'count': len(posts),
+        'results': posts,
+        'next': None,
+        'previous': None
+    })
 
 # AI 기반 영양 추천
 @api_view(['POST', 'OPTIONS'])

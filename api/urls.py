@@ -88,4 +88,8 @@ urlpatterns = [
     # AI 기반 추천 엔드포인트
     path('ai/workout-recommendation/', views.ai_workout_recommendation, name='ai_workout_recommendation'),
     path('ai/nutrition-recommendation/', views.ai_nutrition_recommendation, name='ai_nutrition_recommendation'),
+    
+    # 소셜 피드 추가 엔드포인트
+    path('social/posts/popular/', views.social_posts_popular, name='social_posts_popular'),
+    path('social/posts/recommended/', views.social_posts_recommended, name='social_posts_recommended'),
 ]
