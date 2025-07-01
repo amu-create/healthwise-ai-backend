@@ -632,3 +632,14 @@ def chatbot_sessions_active(request):
         'session_id': None,
         'started_at': None
     })
+
+# 누락된 소셜 알림 엔드포인트
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([AllowAny])
+def social_notifications_unread_count(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    return Response({
+        'unread_count': random.randint(0, 5)  # 모의 데이터
+    })

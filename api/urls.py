@@ -60,4 +60,7 @@ urlpatterns = [
     path('chatbot/status/', views.chatbot_status, name='chatbot_status'),
     path('chatbot/sessions/', views.chatbot_sessions, name='chatbot_sessions'),
     path('chatbot/sessions/active/', views.chatbot_sessions_active, name='chatbot_sessions_active'),
+    
+    # 누락된 소셜 알림 엔드포인트
+    path('social/notifications/unread_count/', views.social_notifications_unread_count, name='social_notifications_unread_count'),
 ]
