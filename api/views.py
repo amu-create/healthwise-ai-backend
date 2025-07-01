@@ -692,6 +692,46 @@ def social_posts_feed(request):
     posts = get_social_posts()
     return Response({'count': len(posts), 'results': posts})
 
+@api_view(['POST', 'OPTIONS'])
+@permission_classes([AllowAny])
+def social_posts_create(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    try:
+        data = request.data
+        content = data.get('content', '')
+        workout_session_id = data.get('workout_session_id')
+        image_url = data.get('image_url')
+        
+        # 새 게시물 생성
+        new_post = {
+            'id': random.randint(100, 999),
+            'user': {
+                'id': request.user.id if request.user.is_authenticated else 'guest',
+                'username': request.user.username if request.user.is_authenticated else 'Guest',
+                'profile_image': None
+            },
+            'content': content,
+            'image_url': image_url,
+            'workout_session': workout_session_id,
+            'likes': 0,
+            'comments': [],
+            'created_at': datetime.now().isoformat(),
+            'is_liked': False
+        }
+        
+        return Response({
+            'success': True,
+            'post': new_post
+        }, status=status.HTTP_201_CREATED)
+        
+    except Exception as e:
+        return Response({
+            'success': False,
+            'error': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
+
 @api_view(['GET', 'OPTIONS'])
 @permission_classes([AllowAny])
 def social_stories(request):
@@ -864,6 +904,44 @@ def chatbot(request):
 # 누락된 소셜 알림 엔드포인트
 @api_view(['GET', 'OPTIONS'])
 @permission_classes([AllowAny])
+def social_notifications(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    # 모의 알림 데이터
+    notifications = [
+        {
+            'id': 1,
+            'type': 'like',
+            'user': {'id': 2, 'username': 'user2', 'profile_image': None},
+            'message': 'user2님이 당신의 게시물을 좋아합니다.',
+            'created_at': datetime.now().isoformat(),
+            'is_read': False
+        },
+        {
+            'id': 2,
+            'type': 'comment',
+            'user': {'id': 3, 'username': 'user3', 'profile_image': None},
+            'message': 'user3님이 당신의 게시물에 댓글을 달았습니다.',
+            'created_at': (datetime.now() - timedelta(hours=2)).isoformat(),
+            'is_read': True
+        }
+    ]
+    
+    page = int(request.GET.get('page', 1))
+    page_size = 10
+    start = (page - 1) * page_size
+    end = start + page_size
+    
+    return Response({
+        'count': len(notifications),
+        'next': None,
+        'previous': None,
+        'results': notifications[start:end]
+    })
+
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([AllowAny])
 def social_notifications_unread_count(request):
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
@@ -956,4 +1034,84 @@ def ai_nutrition_recommendation(request):
     except Exception as e:
         return Response({
             'error': f'Nutrition recommendation error: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# 누락된 운동 관련 엔드포인트
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([AllowAny])
+def workout_videos_list(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    search = request.GET.get('search', '')
+    category = request.GET.get('category', 'all')
+    
+    # 유튜브 운동 비디오 검색
+    if search:
+        result = get_workout_videos(search, category)
+    else:
+        # 기본 운동 비디오 목록
+        result = get_workout_videos('workout', category)
+    
+    if 'error' in result:
+        return Response(result, status=status.HTTP_502_BAD_GATEWAY)
+    
+    return Response(result)
+
+@api_view(['POST', 'OPTIONS'])
+@permission_classes([AllowAny])
+def ai_workout(request):
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    try:
+        data = request.data
+        exercise = data.get('exercise', 'general')
+        experience = data.get('experience', '초급')
+        duration = data.get('duration', 30)
+        
+        # AI 운동 추천 생성
+        workout_plan = {
+            'success': True,
+            'plan': {
+                'name': f'{exercise} 운동 플랜',
+                'level': experience,
+                'duration': duration,
+                'exercises': [
+                    {
+                        'name': '워밍업',
+                        'duration': 5,
+                        'sets': 1,
+                        'reps': '-',
+                        'description': '가볍게 몸을 풀어주세요'
+                    },
+                    {
+                        'name': '메인 운동',
+                        'duration': duration - 10,
+                        'sets': 3,
+                        'reps': '10-15',
+                        'description': f'{exercise} 운동을 진행하세요'
+                    },
+                    {
+                        'name': '쿨다운',
+                        'duration': 5,
+                        'sets': 1,
+                        'reps': '-',
+                        'description': '스트레칭으로 마무리하세요'
+                    }
+                ],
+                'tips': [
+                    '운동 전후 충분한 수분 섭취',
+                    '본인의 체력에 맞게 강도 조절',
+                    '호흡을 잘 유지하며 운동'
+                ]
+            }
+        }
+        
+        return Response(workout_plan)
+        
+    except Exception as e:
+        return Response({
+            'success': False,
+            'error': f'AI workout error: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

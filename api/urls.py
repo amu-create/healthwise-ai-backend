@@ -54,6 +54,7 @@ urlpatterns = [
     # 소셜 기능 추가 엔드포인트
     path('social/conversations/unread_count/', views.social_unread_count, name='social_unread_count'),
     path('social/posts/feed/', views.social_posts_feed, name='social_posts_feed'),
+    path('social/posts/', views.social_posts_create, name='social_posts_create'),
     path('social/stories/', views.social_stories, name='social_stories'),
     path('user-level/', views.user_level, name='user_level'),
     
@@ -64,7 +65,12 @@ urlpatterns = [
     path('chatbot/sessions/active/', views.chatbot_sessions_active, name='chatbot_sessions_active'),
     
     # 누락된 소셜 알림 엔드포인트
+    path('social/notifications/', views.social_notifications, name='social_notifications'),
     path('social/notifications/unread_count/', views.social_notifications_unread_count, name='social_notifications_unread_count'),
+    
+    # 누락된 운동 관련 엔드포인트
+    path('workout-videos/', views.workout_videos_list, name='workout_videos_list'),
+    path('ai-workout/', views.ai_workout, name='ai_workout'),
     
     # AI 기반 추천 엔드포인트
     path('ai/workout-recommendation/', views.ai_workout_recommendation, name='ai_workout_recommendation'),
