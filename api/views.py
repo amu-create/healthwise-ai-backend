@@ -1037,10 +1037,23 @@ def chatbot_sessions(request):
             'created_at': datetime.now().isoformat()
         })
     
-    # GET - 세션 목록 (빈 배열이 아닌 기본 구조 반환)
+    # GET - 세션 목록 (프론트엔드가 기대하는 형식)
+    sessions = []
+    
+    # 사용자가 인증된 경우 기본 세션 추가
+    if request.user.is_authenticated:
+        sessions.append({
+            'id': f"session-{request.user.id}",
+            'created_at': datetime.now().isoformat(),
+            'is_active': True,
+            'message_count': 0
+        })
+    
     return Response({
-        'count': 0,
-        'results': [],
+        'count': len(sessions),
+        'results': sessions,
+        'next': None,
+        'previous': None,
         'active_session': {
             'id': 'guest-session' if not request.user.is_authenticated else f"session-{request.user.id}",
             'created_at': datetime.now().isoformat()
