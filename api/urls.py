@@ -34,11 +34,11 @@ urlpatterns = [
     path('youtube/music/', views.youtube_music_recommendations, name='youtube_music'),
     path('music/youtube-search/', views.youtube_search, name='youtube_search'),
     
-    # 🥗 영양 관련 API
+    # 🥗 영양 관련 API - 기본 기능
     path('nutrition/analyze/', views.analyze_nutrition, name='analyze_nutrition'),
     path('nutrition/tracking/', views.nutrition_tracking, name='nutrition_tracking'),
     
-    # AI 영양 분석 API 추가
+    # AI 영양 분석 API - views_nutrition.py의 함수들
     path('ai-nutrition/', views_nutrition.ai_nutrition_analysis, name='ai_nutrition_analysis'),
     path('ai-nutrition/analyze/', views_nutrition.ai_nutrition_analysis_only, name='ai_nutrition_analysis_only'),
     path('food-analyses/', views_nutrition.food_analysis_list, name='food_analysis_list'),
@@ -57,8 +57,9 @@ urlpatterns = [
     
     # 🏥 인증된 사용자 엔드포인트 (누락된 것들 추가)
     path('fitness-profile/', views.fitness_profile, name='fitness_profile'),
-    path('daily-nutrition/<str:date>/', views.daily_nutrition, name='daily_nutrition'),
-    path('nutrition-statistics/', views.nutrition_statistics, name='nutrition_statistics'),
+    # views.py의 daily_nutrition과 충돌하므로 제거 (views_nutrition.py 것을 사용)
+    # path('daily-nutrition/<str:date>/', views.daily_nutrition, name='daily_nutrition'),
+    # path('nutrition-statistics/', views.nutrition_statistics, name='nutrition_statistics'),
     path('workout-logs/', views.workout_logs, name='workout_logs'),
     path('workout-logs/create/', views.workout_logs_create, name='workout_logs_create'),
     path('recommendations/daily/', views.recommendations_daily, name='recommendations_daily'),

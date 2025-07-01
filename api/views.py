@@ -878,7 +878,15 @@ def social_posts_create(request):
         data = request.data
         content = data.get('content', '')
         workout_session_id = data.get('workout_session_id')
+        workout_log_id = data.get('workout_log_id')
         image_url = data.get('image_url')
+        
+        # 컨텐츠가 비어있으면 에러
+        if not content and not image_url:
+            return Response({
+                'success': False,
+                'error': 'Content or image is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         # 새 게시물 생성
         new_post = {
@@ -891,22 +899,23 @@ def social_posts_create(request):
             'content': content,
             'image_url': image_url,
             'workout_session': workout_session_id,
+            'workout_log_id': workout_log_id,
             'likes': 0,
             'comments': [],
             'created_at': datetime.now().isoformat(),
-            'is_liked': False
+            'is_liked': False,
+            'likes_count': 0,
+            'comments_count': 0
         }
         
-        return Response({
-            'success': True,
-            'post': new_post
-        }, status=status.HTTP_201_CREATED)
+        # 성공 응답 - AI 운동 루틴처럼 직접 데이터 반환
+        return Response(new_post, status=status.HTTP_201_CREATED)
         
     except Exception as e:
+        logger.error(f'Social post create error: {str(e)}')
         return Response({
-            'success': False,
-            'error': str(e)
-        }, status=status.HTTP_400_BAD_REQUEST)
+            'error': f'Failed to create post: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET', 'OPTIONS'])
 @permission_classes([AllowAny])
@@ -997,11 +1006,14 @@ def chatbot_sessions(request):
             'created_at': datetime.now().isoformat()
         })
     
-    # GET - 세션 목록
+    # GET - 세션 목록 (빈 배열이 아닌 기본 구조 반환)
     return Response({
         'count': 0,
         'results': [],
-        'active_session': None
+        'active_session': {
+            'id': 'guest-session' if not request.user.is_authenticated else f"session-{request.user.id}",
+            'created_at': datetime.now().isoformat()
+        }
     })
 
 @api_view(['GET', 'OPTIONS'])
@@ -1010,19 +1022,16 @@ def chatbot_sessions_active(request):
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
     
-    # 게스트 세션 반환
-    if not request.user.is_authenticated:
-        return Response({
-            'session': {
-                'id': 'guest-session',
-                'created_at': datetime.now().isoformat()
-            },
-            'session_id': 'guest-session'
-        })
+    # 항상 활성 세션 반환
+    session_id = 'guest-session' if not request.user.is_authenticated else f"session-{request.user.id}"
     
     return Response({
-        'session': None,
-        'session_id': None
+        'session': {
+            'id': session_id,
+            'created_at': datetime.now().isoformat(),
+            'messages': []  # 빈 메시지 배열
+        },
+        'session_id': session_id
     })
 
 # 채팅봇 메인 API
