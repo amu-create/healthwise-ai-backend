@@ -99,20 +99,22 @@ def auth_register(request):
         return Response(status=status.HTTP_200_OK)
     
     try:
-        data = json.loads(request.body) if request.body else {}
-        username = data.get('username')
-        email = data.get('email')
-        password = data.get('password')
+        # request.data 사용 (DRF 표준)
+        username = request.data.get('username')
+        email = request.data.get('email')
+        password = request.data.get('password')
         
         # 추가 프로필 정보
-        birth_date = data.get('birth_date')
-        gender = data.get('gender')
-        height = data.get('height')
-        weight = data.get('weight')
-        diseases = data.get('diseases', [])
-        health_conditions = data.get('health_conditions', [])
-        allergies = data.get('allergies', [])
-        fitness_level = data.get('fitness_level', 'beginner')
+        birth_date = request.data.get('birth_date')
+        gender = request.data.get('gender')
+        height = request.data.get('height')
+        weight = request.data.get('weight')
+        diseases = request.data.get('diseases', [])
+        health_conditions = request.data.get('health_conditions', [])
+        allergies = request.data.get('allergies', [])
+        fitness_level = request.data.get('fitness_level', 'beginner')
+        
+        print(f"Register attempt - username: {username}, email: {email}")
         
         if not username or not email or not password:
             return Response({
