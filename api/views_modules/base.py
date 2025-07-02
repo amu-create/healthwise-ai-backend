@@ -59,7 +59,7 @@ def guest_fitness_profile(request):
     # 인증된 사용자의 경우 실제 프로필 반환
     if request.user.is_authenticated:
         try:
-            from api.models import UserProfile
+            from ..models import UserProfile
             profile = UserProfile.objects.get(user=request.user)
             from datetime import date
             today = date.today()
@@ -199,7 +199,7 @@ def fitness_profile(request):
     # 인증된 사용자의 경우 실제 프로필 반환
     if request.user.is_authenticated:
         try:
-            from api.models import UserProfile
+            from ..models import UserProfile
             profile = UserProfile.objects.get(user=request.user)
             from datetime import date
             today = date.today()

@@ -3,8 +3,8 @@ from rest_framework.decorators import api_view, permission_classes, authenticati
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.contrib.auth.models import User
-from api.models import UserProfile
-from api.authentication import SimpleTokenAuthentication
+from ..models import UserProfile
+from ..authentication import SimpleTokenAuthentication
 from rest_framework.authentication import SessionAuthentication
 from datetime import datetime, date
 import logging
