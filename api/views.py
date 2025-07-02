@@ -131,6 +131,12 @@ def auth_login(request):
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
+            # 세션 저장 강제
+            request.session.save()
+            # CSRF 토큰 갱신
+            from django.middleware.csrf import rotate_token
+            rotate_token(request)
+            
             return Response({
                 'success': True,
                 'user': {
@@ -140,7 +146,9 @@ def auth_login(request):
                     'profile_image': None  # 프론트엔드가 기대하는 필드
                 },
                 'access': 'dummy-token',  # 프론트엔드가 토큰을 기대할 수 있음
-                'refresh': 'dummy-refresh-token'
+                'refresh': 'dummy-refresh-token',
+                'session_key': request.session.session_key,  # 디버깅용
+                'csrf_token': get_token(request)  # CSRF 토큰 포함
             })
         else:
             return Response({

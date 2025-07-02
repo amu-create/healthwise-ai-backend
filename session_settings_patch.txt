@@ -1,0 +1,25 @@
+# C:\Users\User\healthwise-backend-deploy\healthwise\settings.py 패치
+# 세션 쿠키 설정 개선
+
+# Session configuration
+SESSION_COOKIE_AGE = 86400 * 30  # 30일
+SESSION_COOKIE_SECURE = False  # Railway는 HTTPS를 자동으로 처리하므로 False로 설정
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+
+# CSRF configuration  
+CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_TRUSTED_ORIGINS = [
+    'https://healthwiseaipro.netlify.app',
+    'https://healthwise-api-production.up.railway.app',
+    'http://localhost:3000',
+]
+
+# Security headers
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True

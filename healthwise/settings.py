@@ -201,6 +201,12 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = True
     CSRF_COOKIE_SAMESITE = 'None'  # Cross-origin 요청을 위해
     SESSION_COOKIE_SAMESITE = 'None'
+    SESSION_COOKIE_HTTPONLY = False  # JavaScript에서 접근 가능하도록
+    CSRF_COOKIE_HTTPONLY = False  # JavaScript에서 접근 가능하도록
+    
+    # 세션 쿠키가 제대로 설정되도록 도메인 설정
+    SESSION_COOKIE_DOMAIN = None  # 요청 도메인 자동 사용
+    CSRF_COOKIE_DOMAIN = None  # 요청 도메인 자동 사용
     
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -318,3 +324,4 @@ KAKAO_API_KEY = os.environ.get('KAKAO_API_KEY')
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 86400 * 30  # 30일
 SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_NAME = 'healthwise_sessionid'  # 커스텀 세션 쿠키 이름
