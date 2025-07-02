@@ -1,14 +1,9 @@
 from django.urls import path
-# 기존 views.py import
 from . import views
-# 모듈화된 views import
-from .views_modules.health import health_options, api_health
-from .views_modules.nutrition_summary import nutrition_summary
-from .views_modules.social_endpoints import mark_all_notifications_as_read, upload_profile_image
 from . import views_nutrition
 
 urlpatterns = [
-    # 기존 API
+    # 기본 API
     path('test/', views.test_api, name='test_api'),
     path('guest/profile/', views.guest_profile, name='guest_profile'),
     path('guest/login/', views.guest_login, name='guest_login'),
@@ -18,11 +13,11 @@ urlpatterns = [
     path('auth/register/', views.auth_register, name='auth_register'),
     
     # Health check endpoints
-    path('health/', api_health, name='api_health'),  # 모듈화된 함수
+    path('health/', views.api_health, name='api_health'),
     path('health-check/', views.health_check, name='health_check'),
     
     # 건강 선택지 API
-    path('health/options/', health_options, name='health_options'),  # 모듈화된 함수
+    path('health/options/', views.health_options, name='health_options'),
     
     # Guest endpoints
     path('guest/fitness-profile/', views.guest_fitness_profile, name='guest_fitness_profile'),
@@ -38,9 +33,9 @@ urlpatterns = [
     
     # 🎵 유튜브 음악 추천 API
     path('youtube/music/', views.youtube_music_recommendations, name='youtube_music'),
-    path('music/ai-keywords/', views.youtube_music_recommendations, name='music_ai_keywords'),  # 프론트엔드가 기대하는 엔드포인트
+    path('music/ai-keywords/', views.youtube_music_recommendations, name='music_ai_keywords'),
     path('music/youtube-search/', views.youtube_search, name='youtube_search'),
-    path('music/save-feedback/', views.music_save_feedback, name='music_save_feedback'),  # 피드백 저장
+    path('music/save-feedback/', views.music_save_feedback, name='music_save_feedback'),
     
     # 🥗 영양 관련 API - 기본 기능
     path('nutrition/analyze/', views.analyze_nutrition, name='analyze_nutrition'),
@@ -63,12 +58,9 @@ urlpatterns = [
     # 🩺 AI 건강 상담 API
     path('health/consultation/', views.health_consultation, name='health_consultation'),
     
-    # 🏥 인증된 사용자 엔드포인트 (누락된 것들 추가)
-    path('profile/', views.user_profile, name='user_profile'),  # 프로필 API 추가
+    # 🏥 인증된 사용자 엔드포인트
+    path('profile/', views.user_profile, name='user_profile'),
     path('fitness-profile/', views.fitness_profile, name='fitness_profile'),
-    # views.py의 daily_nutrition과 충돌하므로 제거 (views_nutrition.py 것을 사용)
-    # path('daily-nutrition/<str:date>/', views.daily_nutrition, name='daily_nutrition'),
-    # path('nutrition-statistics/', views.nutrition_statistics, name='nutrition_statistics'),
     path('workout-logs/', views.workout_logs, name='workout_logs'),
     path('workout-logs/create/', views.workout_logs_create, name='workout_logs_create'),
     path('recommendations/daily/', views.recommendations_daily, name='recommendations_daily'),
@@ -81,16 +73,16 @@ urlpatterns = [
     path('user-level/', views.user_level, name='user_level'),
     
     # 채팅봇 엔드포인트
-    path('chatbot/', views.chatbot, name='chatbot'),  # 메인 채팅봇 API
+    path('chatbot/', views.chatbot, name='chatbot'),
     path('chatbot/status/', views.chatbot_status, name='chatbot_status'),
     path('chatbot/sessions/', views.chatbot_sessions, name='chatbot_sessions'),
     path('chatbot/sessions/active/', views.chatbot_sessions_active, name='chatbot_sessions_active'),
     
-    # 누락된 소셜 알림 엔드포인트
+    # 소셜 알림 엔드포인트
     path('social/notifications/', views.social_notifications, name='social_notifications'),
     path('social/notifications/unread_count/', views.social_notifications_unread_count, name='social_notifications_unread_count'),
     
-    # 누락된 운동 관련 엔드포인트
+    # 운동 관련 추가 엔드포인트
     path('workout-videos/', views.workout_videos_list, name='workout_videos_list'),
     path('ai-workout/', views.ai_workout, name='ai_workout'),
     
@@ -102,8 +94,8 @@ urlpatterns = [
     path('social/posts/popular/', views.social_posts_popular, name='social_posts_popular'),
     path('social/posts/recommended/', views.social_posts_recommended, name='social_posts_recommended'),
     
-    # 🔧 누락된 엔드포인트 추가 (2025-07-02)
-    path('nutrition-summary/<str:date_str>/', nutrition_summary, name='nutrition_summary'),
-    path('social/notifications/mark_all_as_read/', mark_all_notifications_as_read, name='mark_all_notifications_as_read'),
-    path('auth/profile/upload-image/', upload_profile_image, name='upload_profile_image'),
+    # 🔧 추가 엔드포인트 (모듈화된 것들은 차후 추가)
+    # path('nutrition-summary/<str:date_str>/', nutrition_summary, name='nutrition_summary'),
+    # path('social/notifications/mark_all_as_read/', mark_all_notifications_as_read, name='mark_all_notifications_as_read'),
+    # path('auth/profile/upload-image/', upload_profile_image, name='upload_profile_image'),
 ]
