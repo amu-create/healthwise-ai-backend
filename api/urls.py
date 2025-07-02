@@ -3,6 +3,8 @@ from django.urls import path
 from . import views
 # 모듈화된 views import
 from .views_modules.health import health_options, api_health
+from .views_modules.nutrition_summary import nutrition_summary
+from .views_modules.social_endpoints import mark_all_notifications_as_read, upload_profile_image
 from . import views_nutrition
 
 urlpatterns = [
@@ -99,4 +101,9 @@ urlpatterns = [
     # 소셜 피드 추가 엔드포인트
     path('social/posts/popular/', views.social_posts_popular, name='social_posts_popular'),
     path('social/posts/recommended/', views.social_posts_recommended, name='social_posts_recommended'),
+    
+    # 🔧 누락된 엔드포인트 추가 (2025-07-02)
+    path('nutrition-summary/<str:date_str>/', nutrition_summary, name='nutrition_summary'),
+    path('social/notifications/mark_all_as_read/', mark_all_notifications_as_read, name='mark_all_notifications_as_read'),
+    path('auth/profile/upload-image/', upload_profile_image, name='upload_profile_image'),
 ]
