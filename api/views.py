@@ -213,28 +213,27 @@ def auth_register(request):
                 'error': 'Email already exists'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # 사용자 생성
+        # 사용자 생성 (신호에서 UserProfile 자동 생성됨)
         user = User.objects.create_user(username=username, email=email, password=password)
         
-        # 프로필 생성
-        profile_data = {
-            'user': user,
-            'fitness_level': fitness_level,
-            'diseases': diseases,
-            'health_conditions': health_conditions,
-            'allergies': allergies,
-        }
+        # 프로필 업데이트 (이미 생성된 프로필을 가져와서 업데이트)
+        profile = user.profile  # 신호에서 자동 생성된 프로필
+        
+        profile.fitness_level = fitness_level
+        profile.diseases = diseases
+        profile.health_conditions = health_conditions
+        profile.allergies = allergies
         
         if birth_date:
-            profile_data['birth_date'] = birth_date
+            profile.birth_date = birth_date
         if gender:
-            profile_data['gender'] = gender
+            profile.gender = gender
         if height:
-            profile_data['height'] = float(height)
+            profile.height = float(height)
         if weight:
-            profile_data['weight'] = float(weight)
+            profile.weight = float(weight)
             
-        UserProfile.objects.create(**profile_data)
+        profile.save()
         
         # 자동 로그인
         login(request, user)
