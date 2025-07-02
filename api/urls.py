@@ -59,6 +59,7 @@ urlpatterns = [
     path('health/consultation/', views.health_consultation, name='health_consultation'),
     
     # 🏥 인증된 사용자 엔드포인트 (누락된 것들 추가)
+    path('profile/', views.user_profile, name='user_profile'),  # 프로필 API 추가
     path('fitness-profile/', views.fitness_profile, name='fitness_profile'),
     # views.py의 daily_nutrition과 충돌하므로 제거 (views_nutrition.py 것을 사용)
     # path('daily-nutrition/<str:date>/', views.daily_nutrition, name='daily_nutrition'),
