@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
@@ -7,8 +8,8 @@ class UserProfile(models.Model):
     # 기본 정보
     birth_date = models.DateField(null=True, blank=True)
     gender = models.CharField(max_length=10, choices=[('M', 'Male'), ('F', 'Female'), ('O', 'Other')], null=True, blank=True)
-    height = models.FloatField(null=True, blank=True, help_text="Height in cm")
-    weight = models.FloatField(null=True, blank=True, help_text="Weight in kg")
+    height = models.FloatField(null=True, blank=True, help_text="Height in cm", validators=[MinValueValidator(50), MaxValueValidator(300)])
+    weight = models.FloatField(null=True, blank=True, help_text="Weight in kg", validators=[MinValueValidator(20), MaxValueValidator(500)])
     
     # 건강 정보
     diseases = models.JSONField(default=list, blank=True, help_text="List of diseases")
@@ -23,6 +24,15 @@ class UserProfile(models.Model):
         ('advanced', 'Advanced')
     ], default='beginner')
     fitness_goals = models.JSONField(default=list, blank=True)
+    
+    # 운동 목표 (원본 프로젝트 참고)
+    workout_days_per_week = models.IntegerField(default=3, validators=[MinValueValidator(1), MaxValueValidator(7)])
+    weekly_workout_goal = models.IntegerField(default=3, help_text='주간 운동 목표 횟수')
+    daily_steps_goal = models.IntegerField(default=10000, help_text='일일 목표 걸음 수')
+    
+    # 선호도 정보 
+    preferred_exercises = models.JSONField(default=list, help_text='선호하는 운동 목록')
+    preferred_foods = models.JSONField(default=list, help_text='선호하는 음식 목록')
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -172,3 +182,103 @@ class DailyNutrition(models.Model):
         verbose_name_plural = "일일 영양 기록 목록"
         unique_together = [['user', 'date']]
         ordering = ['-date']
+
+# WorkoutLog 모델 추가 (원본 프로젝트 참고)
+class WorkoutLog(models.Model):
+    """운동 기록"""
+    WORKOUT_TYPE_CHOICES = [
+        ('running', '러닝'),
+        ('cycling', '자전거'),
+        ('swimming', '수영'),
+        ('gym', '헬스장'),
+        ('yoga', '요가'),
+        ('pilates', '필라테스'),
+        ('hiking', '등산'),
+        ('sports', '스포츠'),
+        ('home', '홈트레이닝'),
+        ('other', '기타'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='workout_logs')
+    date = models.DateField()
+    duration = models.IntegerField(help_text='분 단위')
+    calories_burned = models.IntegerField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    
+    # 운동 세부 정보
+    workout_name = models.CharField(max_length=100)
+    workout_type = models.CharField(max_length=20, choices=WORKOUT_TYPE_CHOICES, default='other')
+    sets = models.IntegerField(null=True, blank=True)
+    reps = models.IntegerField(null=True, blank=True)
+    weight = models.FloatField(null=True, blank=True, help_text='kg 단위')
+    
+    # 지도 관련 정보
+    start_latitude = models.FloatField(null=True, blank=True)
+    start_longitude = models.FloatField(null=True, blank=True)
+    end_latitude = models.FloatField(null=True, blank=True)
+    end_longitude = models.FloatField(null=True, blank=True)
+    route_coordinates = models.JSONField(default=list, help_text='경로 좌표 목록')
+    distance = models.FloatField(null=True, blank=True, help_text='이동 거리 (km)')
+    
+    # 운동 중 측정값
+    avg_heart_rate = models.IntegerField(null=True, blank=True, help_text='평균 심박수')
+    max_heart_rate = models.IntegerField(null=True, blank=True, help_text='최대 심박수')
+    steps = models.IntegerField(null=True, blank=True, help_text='걸음 수')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = '운동 기록'
+        verbose_name_plural = '운동 기록들'
+        ordering = ['-date', '-created_at']
+    
+    def __str__(self):
+        return f"{self.user.email} - {self.date} - {self.workout_name}"
+
+# ChatSession 모델 추가 (챗봇 세션 관리)
+class ChatSession(models.Model):
+    """챗봇 대화 세션"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chat_sessions')
+    user_session_number = models.IntegerField(default=1, help_text='사용자별 세션 번호')
+    started_at = models.DateTimeField(auto_now_add=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    
+    # 세션 요약 정보
+    summary = models.TextField(blank=True, help_text='세션 대화 요약')
+    extracted_preferences = models.JSONField(default=dict, help_text='추출된 선호도 정보')
+    
+    class Meta:
+        verbose_name = '챗봇 세션'
+        verbose_name_plural = '챗봇 세션들'
+        ordering = ['-started_at']
+    
+    def __str__(self):
+        return f"{self.user.email} - 세션 #{self.user_session_number} ({self.started_at})"
+
+# ChatMessage 모델 추가
+class ChatMessage(models.Model):
+    """챗봇 대화 메시지"""
+    SENDER_CHOICES = [
+        ('user', '사용자'),
+        ('bot', '챗봇'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chat_messages')
+    session = models.ForeignKey(ChatSession, on_delete=models.CASCADE, related_name='messages', null=True, blank=True)
+    sender = models.CharField(max_length=10, choices=SENDER_CHOICES)
+    message = models.TextField()
+    
+    # 메타데이터
+    context = models.JSONField(null=True, blank=True, help_text='대화 컨텍스트')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = '챗봇 메시지'
+        verbose_name_plural = '챗봇 메시지들'
+        ordering = ['created_at']
+    
+    def __str__(self):
+        return f"{self.user.email} - {self.sender} - {self.created_at}"

@@ -376,9 +376,28 @@ def guest_workout_logs(request):
     
     limit = int(request.GET.get('limit', 7))
     workout_types = ['Cardio', 'Strength Training', 'Yoga', 'HIIT', 'Swimming', 'Running']
-    logs = []
     
-    for i in range(limit):
+    # 세션에서 실제 운동 로그 가져오기
+    session_logs = request.session.get('workout_logs', [])
+    
+    # 날짜별로 정렬 (최신순)
+    session_logs.sort(key=lambda x: x.get('date', ''), reverse=True)
+    
+    # 실제 로그 먼저 추가
+    logs = []
+    for log in session_logs[:limit]:
+        logs.append({
+            'id': log.get('id', f'workout-{len(logs)}'),
+            'date': log.get('date', datetime.now().strftime('%Y-%m-%d')),
+            'type': log.get('routine_name', 'Strength Training'),
+            'duration': log.get('duration', 30),  # 실제 운동 시간
+            'calories_burned': log.get('calories_burned', 240),
+            'intensity': log.get('intensity', 'moderate'),
+            'notes': log.get('notes', '운동을 완료했습니다! 💪')
+        })
+    
+    # 나머지 날짜는 랜덤 데이터로 채우기 (선택적)
+    for i in range(len(logs), limit):
         date = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
         if random.random() > 0.3:
             logs.append({
@@ -711,12 +730,43 @@ def workout_logs(request):
         return Response(status=status.HTTP_200_OK)
     
     if request.method == 'GET':
-        # 기존 GET 로직
         limit = int(request.GET.get('limit', 7))
         workout_types = ['Cardio', 'Strength Training', 'Yoga', 'HIIT', 'Swimming', 'Running']
         logs = []
         
-        for i in range(limit):
+        # 인증된 사용자는 DB에서 가져오기
+        if request.user.is_authenticated:
+            from .models import WorkoutLog
+            db_logs = WorkoutLog.objects.filter(user=request.user).order_by('-date', '-created_at')[:limit]
+            
+            for log in db_logs:
+                logs.append({
+                    'id': log.id,
+                    'date': log.date.isoformat(),
+                    'type': log.workout_name,
+                    'duration': log.duration,
+                    'calories_burned': log.calories_burned,
+                    'intensity': 'moderate',  # 기본값
+                    'notes': log.notes or '운동을 완료했습니다! 💪'
+                })
+        else:
+            # 게스트는 세션에서 가져오기
+            session_logs = request.session.get('workout_logs', [])
+            session_logs.sort(key=lambda x: x.get('date', ''), reverse=True)
+            
+            for log in session_logs[:limit]:
+                logs.append({
+                    'id': log.get('id', f'workout-{len(logs)}'),
+                    'date': log.get('date', datetime.now().strftime('%Y-%m-%d')),
+                    'type': log.get('routine_name', 'Strength Training'),
+                    'duration': log.get('duration', 30),
+                    'calories_burned': log.get('calories_burned', 240),
+                    'intensity': log.get('intensity', 'moderate'),
+                    'notes': log.get('notes', '운동을 완료했습니다! 💪')
+                })
+        
+        # 나머지는 랜덤 데이터로 채우기
+        for i in range(len(logs), limit):
             date = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
             if random.random() > 0.3:
                 logs.append({
@@ -1212,14 +1262,27 @@ def workout_logs_create(request):
             'total_sets': data.get('total_sets', 0)
         }
         
-        # 실제 DB 저장 로직 (Django 모델 사용 시)
-        # if request.user.is_authenticated:
-        #     WorkoutLog.objects.create(**workout_log)
-        
-        # 세션에 저장 (임시 저장소)
-        if not hasattr(request.session, '_workout_logs'):
-            request.session._workout_logs = []
-        request.session._workout_logs.append(workout_log)
+        # 실제 DB 저장 로직
+        if request.user.is_authenticated:
+            from .models import WorkoutLog
+            from datetime import datetime as dt
+            
+            db_log = WorkoutLog.objects.create(
+                user=request.user,
+                date=dt.strptime(data.get('date', datetime.now().strftime('%Y-%m-%d')), '%Y-%m-%d').date(),
+                duration=duration,
+                calories_burned=calories_burned,
+                notes=data.get('notes', ''),
+                workout_name=data.get('routine_name', '운동 루틴'),
+                workout_type='gym',  # 기본값
+            )
+            workout_log['id'] = db_log.id
+        else:
+            # 게스트는 세션에 저장
+            if 'workout_logs' not in request.session:
+                request.session['workout_logs'] = []
+            request.session['workout_logs'].append(workout_log)
+            request.session.modified = True  # 세션 변경사항 저장 강제
         
         # 소셜 공유 처리
         share_to_social = data.get('share_to_social', False)
