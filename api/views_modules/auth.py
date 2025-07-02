@@ -1,4 +1,4 @@
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.middleware.csrf import get_token
 from rest_framework import status
@@ -9,6 +9,13 @@ from ..models import UserProfile
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def auth_csrf(request):
+    """CSRF 토큰 가져오기"""
+    return Response({'csrfToken': get_token(request)})
 
 @api_view(['POST', 'OPTIONS'])
 @permission_classes([AllowAny])
@@ -73,6 +80,25 @@ def auth_login(request):
             'success': False,
             'error': str(e)
         }, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST', 'OPTIONS'])
+@permission_classes([AllowAny])
+def auth_logout(request):
+    """로그아웃 API"""
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
+    # 게스트 사용자 확인
+    is_guest = request.headers.get('X-Is-Guest') == 'true'
+    
+    if is_guest:
+        # 게스트의 경우 그냥 성공 반환
+        return Response({'success': True, 'message': 'Guest logout successful'})
+    
+    # 일반 사용자 로그아웃
+    logout(request)
+    return Response({'success': True})
 
 @api_view(['POST', 'OPTIONS'])
 @permission_classes([AllowAny])
