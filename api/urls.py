@@ -1,10 +1,9 @@
 from django.urls import path
-# 기존 views.py가 아직 존재하므로 일단 그대로 사용
+# 기존 views.py import
 from . import views
+# 모듈화된 views import
+from .views_modules.health import health_options, api_health
 from . import views_nutrition
-# 나중에 모듈화 완료 시 아래로 변경
-# from .views import *
-# from . import views_nutrition
 
 urlpatterns = [
     # 기존 API
@@ -17,11 +16,11 @@ urlpatterns = [
     path('auth/register/', views.auth_register, name='auth_register'),
     
     # Health check endpoints
-    path('health/', views.api_health, name='api_health'),
+    path('health/', api_health, name='api_health'),  # 모듈화된 함수
     path('health-check/', views.health_check, name='health_check'),
     
     # 건강 선택지 API
-    path('health/options/', views.health_options, name='health_options'),
+    path('health/options/', health_options, name='health_options'),  # 모듈화된 함수
     
     # Guest endpoints
     path('guest/fitness-profile/', views.guest_fitness_profile, name='guest_fitness_profile'),
