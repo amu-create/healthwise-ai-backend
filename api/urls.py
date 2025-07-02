@@ -1,6 +1,10 @@
 from django.urls import path
+# 기존 views.py가 아직 존재하므로 일단 그대로 사용
 from . import views
 from . import views_nutrition
+# 나중에 모듈화 완료 시 아래로 변경
+# from .views import *
+# from . import views_nutrition
 
 urlpatterns = [
     # 기존 API
