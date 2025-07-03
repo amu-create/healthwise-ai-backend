@@ -41,6 +41,6 @@ python manage.py migrate --noinput
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
-# 서버 시작
-echo "Starting Django server..."
-exec gunicorn healthwise.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
+# 서버 시작 (ASGI 최적화)
+echo "Starting Django server with ASGI optimization..."
+exec gunicorn healthwise.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --keep-alive 2
