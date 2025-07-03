@@ -204,6 +204,7 @@ def workout_logs_create(request):
             'id': random.randint(1000, 9999),
             'routine_id': data.get('routine_id'),
             'routine_name': data.get('routine_name', '운동 루틴'),
+            'exercise_name': data.get('routine_name', '운동 루틴'),  # 대시보드용 필드 추가
             'user_id': request.user.id if request.user.is_authenticated else 'guest',
             'date': data.get('date', datetime.now().strftime('%Y-%m-%d')),
             'duration': duration,  # 정수로 저장

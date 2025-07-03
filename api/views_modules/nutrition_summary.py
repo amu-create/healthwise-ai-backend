@@ -6,62 +6,236 @@ from datetime import datetime, timedelta
 from django.utils import timezone
 import random
 import json
+from django.db.models import Sum
+
+# 모델 import 추가
+try:
+    from api.models import DailyNutrition, FoodAnalysis
+except ImportError:
+    # 모델이 없는 경우 None으로 설정
+    DailyNutrition = None
+    FoodAnalysis = None
 
 @api_view(['GET', 'OPTIONS'])
 @permission_classes([AllowAny])
 def nutrition_summary(request, date_str):
-    """특정 날짜의 영양 요약 정보 반환"""
+    """특정 날짜의 영양 요약 정보 반환 - 실제 데이터 연동"""
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
     
     try:
         # 날짜 파싱
-        date = datetime.strptime(date_str, '%Y-%m-%d')
+        date = datetime.strptime(date_str, '%Y-%m-%d').date()
         
-        # 목 데이터 생성
-        summary = {
-            'date': date_str,
-            'total_calories': random.randint(1800, 2200),
-            'consumed_calories': random.randint(1500, 2000),
-            'calories_goal': 2000,
-            'macros': {
-                'protein': {
-                    'current': random.randint(60, 80),
-                    'goal': 75,
-                    'unit': 'g'
+        # 게스트 사용자나 인증되지 않은 사용자 처리
+        if not request.user.is_authenticated:
+            # 게스트용 목 데이터
+            summary = {
+                'date': date_str,
+                'total_calories': 0,
+                'consumed_calories': 0,
+                'calories_goal': 2000,
+                'macros': {
+                    'protein': {
+                        'current': 0,
+                        'goal': 75,
+                        'unit': 'g'
+                    },
+                    'carbs': {
+                        'current': 0,
+                        'goal': 250,
+                        'unit': 'g'
+                    },
+                    'fat': {
+                        'current': 0,
+                        'goal': 65,
+                        'unit': 'g'
+                    },
+                    'fiber': {
+                        'current': 0,
+                        'goal': 25,
+                        'unit': 'g'
+                    }
                 },
-                'carbs': {
-                    'current': random.randint(200, 250),
-                    'goal': 250,
-                    'unit': 'g'
+                'hydration': {
+                    'current': 0,
+                    'goal': 2000,
+                    'unit': 'ml'
                 },
-                'fat': {
-                    'current': random.randint(50, 70),
-                    'goal': 65,
-                    'unit': 'g'
+                'meals': {
+                    'breakfast': 0,
+                    'lunch': 0,
+                    'dinner': 0,
+                    'snacks': 0
                 },
-                'fiber': {
-                    'current': random.randint(20, 30),
-                    'goal': 25,
-                    'unit': 'g'
+                'food_analyses': [],
+                'is_complete': False,
+                'updated_at': datetime.now().isoformat(),
+                'is_guest': True,
+                'message': '로그인 후 실제 영양 데이터를 확인할 수 있습니다.'
+            }
+            return Response(summary)
+        
+        # 인증된 사용자: 실제 데이터 조회
+        if DailyNutrition:
+            try:
+                daily_nutrition = DailyNutrition.objects.get(user=request.user, date=date)
+                
+                # 음식 분석 데이터도 함께 가져오기
+                food_analyses = daily_nutrition.food_analyses.all().order_by('-analyzed_at')
+                food_analyses_data = []
+                
+                for food in food_analyses:
+                    food_analyses_data.append({
+                        'id': food.id,
+                        'food_name': food.food_name,
+                        'calories': food.calories,
+                        'protein': food.protein,
+                        'carbohydrates': food.carbohydrates,
+                        'fat': food.fat,
+                        'fiber': food.fiber or 0,
+                        'analyzed_at': food.analyzed_at.isoformat()
+                    })
+                
+                # 실제 데이터 기반 요약
+                summary = {
+                    'date': date_str,
+                    'total_calories': daily_nutrition.total_calories,
+                    'consumed_calories': daily_nutrition.total_calories,
+                    'calories': daily_nutrition.total_calories,  # 대시보드용 추가
+                    'protein': daily_nutrition.total_protein,    # 대시보드용 추가
+                    'calories_goal': 2000,
+                    'macros': {
+                        'protein': {
+                            'current': daily_nutrition.total_protein,
+                            'goal': 75,
+                            'unit': 'g'
+                        },
+                        'carbs': {
+                            'current': daily_nutrition.total_carbohydrates,
+                            'goal': 250,
+                            'unit': 'g'
+                        },
+                        'fat': {
+                            'current': daily_nutrition.total_fat,
+                            'goal': 65,
+                            'unit': 'g'
+                        },
+                        'fiber': {
+                            'current': sum(food.fiber or 0 for food in food_analyses),
+                            'goal': 25,
+                            'unit': 'g'
+                        }
+                    },
+                    'hydration': {
+                        'current': random.randint(1500, 2500),  # 물 섭취량은 별도 기능 필요
+                        'goal': 2000,
+                        'unit': 'ml'
+                    },
+                    'meals': {
+                        'breakfast': 0,  # 식사별 분류는 별도 기능 필요
+                        'lunch': 0,
+                        'dinner': 0,
+                        'snacks': daily_nutrition.total_calories
+                    },
+                    'food_analyses': food_analyses_data,
+                    'is_complete': daily_nutrition.total_calories >= 1500,  # 1500 칼로리 이상이면 완료
+                    'updated_at': daily_nutrition.updated_at.isoformat() if hasattr(daily_nutrition, 'updated_at') else datetime.now().isoformat()
                 }
-            },
-            'hydration': {
-                'current': random.randint(1500, 2500),
-                'goal': 2000,
-                'unit': 'ml'
-            },
-            'meals': {
-                'breakfast': random.randint(400, 600),
-                'lunch': random.randint(500, 700),
-                'dinner': random.randint(400, 600),
-                'snacks': random.randint(100, 300)
-            },
-            'is_complete': False,
-            'updated_at': datetime.now().isoformat()
-        }
+                
+                return Response(summary)
+                
+            except DailyNutrition.DoesNotExist:
+                # 해당 날짜에 기록이 없는 경우 빈 데이터 반환
+                summary = {
+                    'date': date_str,
+                    'total_calories': 0,
+                    'consumed_calories': 0,
+                    'calories_goal': 2000,
+                    'macros': {
+                        'protein': {
+                            'current': 0,
+                            'goal': 75,
+                            'unit': 'g'
+                        },
+                        'carbs': {
+                            'current': 0,
+                            'goal': 250,
+                            'unit': 'g'
+                        },
+                        'fat': {
+                            'current': 0,
+                            'goal': 65,
+                            'unit': 'g'
+                        },
+                        'fiber': {
+                            'current': 0,
+                            'goal': 25,
+                            'unit': 'g'
+                        }
+                    },
+                    'hydration': {
+                        'current': 0,
+                        'goal': 2000,
+                        'unit': 'ml'
+                    },
+                    'meals': {
+                        'breakfast': 0,
+                        'lunch': 0,
+                        'dinner': 0,
+                        'snacks': 0
+                    },
+                    'food_analyses': [],
+                    'is_complete': False,
+                    'updated_at': datetime.now().isoformat()
+                }
+                return Response(summary)
         
-        return Response(summary)
+        else:
+            # 모델이 없는 경우 목 데이터 반환
+            summary = {
+                'date': date_str,
+                'total_calories': random.randint(1800, 2200),
+                'consumed_calories': random.randint(1500, 2000),
+                'calories_goal': 2000,
+                'macros': {
+                    'protein': {
+                        'current': random.randint(60, 80),
+                        'goal': 75,
+                        'unit': 'g'
+                    },
+                    'carbs': {
+                        'current': random.randint(200, 250),
+                        'goal': 250,
+                        'unit': 'g'
+                    },
+                    'fat': {
+                        'current': random.randint(50, 70),
+                        'goal': 65,
+                        'unit': 'g'
+                    },
+                    'fiber': {
+                        'current': random.randint(20, 30),
+                        'goal': 25,
+                        'unit': 'g'
+                    }
+                },
+                'hydration': {
+                    'current': random.randint(1500, 2500),
+                    'goal': 2000,
+                    'unit': 'ml'
+                },
+                'meals': {
+                    'breakfast': random.randint(400, 600),
+                    'lunch': random.randint(500, 700),
+                    'dinner': random.randint(400, 600),
+                    'snacks': random.randint(100, 300)
+                },
+                'food_analyses': [],
+                'is_complete': False,
+                'updated_at': datetime.now().isoformat()
+            }
+            return Response(summary)
         
     except ValueError:
         return Response({
