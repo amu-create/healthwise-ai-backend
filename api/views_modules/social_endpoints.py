@@ -166,9 +166,9 @@ def social_stories(request):
     })
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def social_notifications(request):
-    """알림 목록"""
+    """알림 목록 (게스트도 접근 가능)"""
     notifications = []
     notification_types = ['like', 'comment', 'follow', 'mention']
     
@@ -194,9 +194,9 @@ def social_notifications(request):
     })
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def social_notifications_unread_count(request):
-    """읽지 않은 알림 개수"""
+    """읽지 않은 알림 개수 (게스트도 접근 가능)"""
     return Response({
         'unread_count': random.randint(0, 10)
     })
@@ -220,9 +220,9 @@ def like_post(request, post_id):
     })
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def social_unread_count(request):
-    """읽지 않은 소셜 알림 수"""
+    """읽지 않은 소셜 알림 수 (게스트도 접근 가능)"""
     return Response({
         'messages': random.randint(0, 5),
         'notifications': random.randint(0, 10),
@@ -322,9 +322,9 @@ def upload_profile_image(request):
 
 # 추가 소셜 기능들
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def social_conversations_unread_count(request):
-    """읽지 않은 대화 개수"""
+    """읽지 않은 대화 개수 (게스트도 접근 가능)"""
     return Response({
         'unread_count': random.randint(0, 5)
     })
