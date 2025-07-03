@@ -18,6 +18,10 @@ COPY . .
 # Collect static files
 RUN python manage.py collectstatic --noinput
 
+# Add wait_for_db script
+COPY wait_for_db.py .
+
 # Run migrations and start server
-CMD python manage.py migrate --noinput && \
+CMD python wait_for_db.py && \
+    python manage.py migrate --noinput && \
     gunicorn healthwise.wsgi:application --bind 0.0.0.0:${PORT:-8000}

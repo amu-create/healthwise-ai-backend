@@ -83,21 +83,17 @@ ASGI_APPLICATION = 'healthwise.asgi.application'  # ASGI 추가
 logger = logging.getLogger(__name__)
 
 def get_database_config():
-    """Get database configuration with retry logic for Railway Reference Variables"""
+    """Get database configuration with better error handling"""
     database_url = os.environ.get('DATABASE_URL')
     
-    # Railway 환경에서 Reference Variable 해석 대기
-    if os.environ.get('RAILWAY_ENVIRONMENT') and not database_url:
-        logger.warning("DATABASE_URL not found, waiting for Railway to inject Reference Variables...")
-        for attempt in range(10):  # 최대 10번 시도 (50초)
-            time.sleep(5)
-            database_url = os.environ.get('DATABASE_URL')
-            if database_url:
-                logger.info(f"DATABASE_URL found on attempt {attempt + 1}")
-                break
-            logger.warning(f"Attempt {attempt + 1}: DATABASE_URL still not available")
+    # Railway에서는 buildtime에 Reference Variable이 해석되지 않음
+    # 런타임에서만 사용 가능
+    if os.environ.get('RAILWAY_ENVIRONMENT'):
+        logger.info("Running in Railway environment")
+        if database_url:
+            logger.info(f"DATABASE_URL found: {database_url[:50]}...")
         else:
-            logger.error("DATABASE_URL not found after all attempts")
+            logger.warning("DATABASE_URL not yet available (normal during build)")
     
     if database_url:
         return dj_database_url.config(
@@ -106,7 +102,7 @@ def get_database_config():
             conn_health_checks=True,
         )
     else:
-        # 로컬 개발용 SQLite
+        # 빌드 타임이나 로컬 개발용 임시 설정
         return {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
@@ -285,19 +281,14 @@ LOGGING = {
 
 # Redis configuration with retry logic
 def get_redis_config():
-    """Get Redis configuration with retry logic for Railway Reference Variables"""
+    """Get Redis configuration with better error handling"""
     redis_url = os.environ.get('REDIS_URL')
     
-    # Railway 환경에서 Reference Variable 해석 대기
-    if os.environ.get('RAILWAY_ENVIRONMENT') and not redis_url:
-        logger.warning("REDIS_URL not found, waiting for Railway to inject Reference Variables...")
-        for attempt in range(10):  # 최대 10번 시도 (50초)
-            time.sleep(5)
-            redis_url = os.environ.get('REDIS_URL')
-            if redis_url:
-                logger.info(f"REDIS_URL found on attempt {attempt + 1}")
-                break
-            logger.warning(f"Attempt {attempt + 1}: REDIS_URL still not available")
+    if os.environ.get('RAILWAY_ENVIRONMENT'):
+        if redis_url:
+            logger.info(f"REDIS_URL found: {redis_url[:50]}...")
+        else:
+            logger.warning("REDIS_URL not yet available (normal during build)")
     
     return redis_url
 
