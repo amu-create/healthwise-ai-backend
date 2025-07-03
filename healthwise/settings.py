@@ -4,6 +4,8 @@ Django settings for healthwise project.
 
 from pathlib import Path
 import os
+import time
+import logging
 from dotenv import load_dotenv
 import dj_database_url
 
@@ -46,6 +48,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'api.middleware.db_check.DatabaseConnectionMiddleware',  # DB 연결 체크 추가
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -76,22 +79,43 @@ TEMPLATES = [
 WSGI_APPLICATION = 'healthwise.wsgi.application'
 ASGI_APPLICATION = 'healthwise.asgi.application'  # ASGI 추가
 
-# Database
-if os.environ.get('DATABASE_URL'):
-    DATABASES = {
-        'default': dj_database_url.config(
-            default=os.environ.get('DATABASE_URL'),
+# Database with retry logic for Railway
+logger = logging.getLogger(__name__)
+
+def get_database_config():
+    """Get database configuration with retry logic for Railway Reference Variables"""
+    database_url = os.environ.get('DATABASE_URL')
+    
+    # Railway 환경에서 Reference Variable 해석 대기
+    if os.environ.get('RAILWAY_ENVIRONMENT') and not database_url:
+        logger.warning("DATABASE_URL not found, waiting for Railway to inject Reference Variables...")
+        for attempt in range(10):  # 최대 10번 시도 (50초)
+            time.sleep(5)
+            database_url = os.environ.get('DATABASE_URL')
+            if database_url:
+                logger.info(f"DATABASE_URL found on attempt {attempt + 1}")
+                break
+            logger.warning(f"Attempt {attempt + 1}: DATABASE_URL still not available")
+        else:
+            logger.error("DATABASE_URL not found after all attempts")
+    
+    if database_url:
+        return dj_database_url.config(
+            default=database_url,
             conn_max_age=600,
             conn_health_checks=True,
         )
-    }
-else:
-    DATABASES = {
-        'default': {
+    else:
+        # 로컬 개발용 SQLite
+        return {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
         }
-    }
+
+# Database configuration
+DATABASES = {
+    'default': get_database_config()
+}
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -259,15 +283,34 @@ LOGGING = {
     },
 }
 
+# Redis configuration with retry logic
+def get_redis_config():
+    """Get Redis configuration with retry logic for Railway Reference Variables"""
+    redis_url = os.environ.get('REDIS_URL')
+    
+    # Railway 환경에서 Reference Variable 해석 대기
+    if os.environ.get('RAILWAY_ENVIRONMENT') and not redis_url:
+        logger.warning("REDIS_URL not found, waiting for Railway to inject Reference Variables...")
+        for attempt in range(10):  # 최대 10번 시도 (50초)
+            time.sleep(5)
+            redis_url = os.environ.get('REDIS_URL')
+            if redis_url:
+                logger.info(f"REDIS_URL found on attempt {attempt + 1}")
+                break
+            logger.warning(f"Attempt {attempt + 1}: REDIS_URL still not available")
+    
+    return redis_url
+
 # Redis configuration
-if os.environ.get('REDIS_URL'):
+redis_url = get_redis_config()
+if redis_url:
     import urllib.parse
-    redis_url = urllib.parse.urlparse(os.environ.get('REDIS_URL'))
+    redis_parsed = urllib.parse.urlparse(redis_url)
     
     CACHES = {
         'default': {
             'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': os.environ.get('REDIS_URL'),
+            'LOCATION': redis_url,
             'OPTIONS': {
                 'CLIENT_CLASS': 'django_redis.client.DefaultClient',
             }
@@ -279,14 +322,14 @@ if os.environ.get('REDIS_URL'):
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
             'CONFIG': {
-                "hosts": [os.environ.get('REDIS_URL')],
+                "hosts": [redis_url],
             },
         },
     }
     
     # Celery configuration
-    CELERY_BROKER_URL = os.environ.get('REDIS_URL')
-    CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL')
+    CELERY_BROKER_URL = redis_url
+    CELERY_RESULT_BACKEND = redis_url
     CELERY_ACCEPT_CONTENT = ['json']
     CELERY_TASK_SERIALIZER = 'json'
     CELERY_RESULT_SERIALIZER = 'json'
@@ -312,7 +355,7 @@ if os.environ.get('USE_S3', 'False') == 'True':
 
 # LangChain 설정
 LANGCHAIN_VERBOSE = DEBUG
-LANGCHAIN_CACHE = 'default' if os.environ.get('REDIS_URL') else None
+LANGCHAIN_CACHE = 'default' if redis_url else None
 
 # API Keys (환경변수에서 가져오기)
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
