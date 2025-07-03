@@ -1,6 +1,14 @@
 from django.urls import path
 from . import views
 from . import views_nutrition
+from .views_modules.nutrition_summary import nutrition_summary
+from .views_modules.social_endpoints import (
+    social_notifications, social_notifications_unread_count,
+    social_posts_feed, social_posts_create, social_posts_popular,
+    social_posts_recommended, social_stories, social_unread_count,
+    social_conversations_unread_count, mark_all_notifications_as_read,
+    upload_profile_image, like_post
+)
 
 urlpatterns = [
     # 기본 API
@@ -40,6 +48,7 @@ urlpatterns = [
     # 🥗 영양 관련 API - 기본 기능
     path('nutrition/analyze/', views.analyze_nutrition, name='analyze_nutrition'),
     path('nutrition/tracking/', views.nutrition_tracking, name='nutrition_tracking'),
+    path('nutrition-summary/<str:date_str>/', nutrition_summary, name='nutrition_summary'),
     
     # AI 영양 분석 API - views_nutrition.py의 함수들
     path('ai-nutrition/', views_nutrition.ai_nutrition_analysis, name='ai_nutrition_analysis'),
@@ -51,9 +60,20 @@ urlpatterns = [
     path('nutrition-statistics/', views_nutrition.nutrition_statistics, name='nutrition_statistics'),
     path('nutrition-complete/', views_nutrition.nutrition_complete, name='nutrition_complete'),
     
-    # 👥 소셜 기능 API
+    # 👥 소셜 기능 API - 모듈화된 엔드포인트
     path('social/feed/', views.social_feed, name='social_feed'),
-    path('social/posts/<int:post_id>/like/', views.like_post, name='like_post'),
+    path('social/posts/<int:post_id>/like/', like_post, name='like_post'),
+    path('social/posts/feed/', social_posts_feed, name='social_posts_feed'),
+    path('social/posts/', social_posts_create, name='social_posts_create'),
+    path('social/posts/popular/', social_posts_popular, name='social_posts_popular'),
+    path('social/posts/recommended/', social_posts_recommended, name='social_posts_recommended'),
+    path('social/stories/', social_stories, name='social_stories'),
+    path('social/notifications/', social_notifications, name='social_notifications'),
+    path('social/notifications/unread_count/', social_notifications_unread_count, name='social_notifications_unread_count'),
+    path('social/notifications/mark_all_as_read/', mark_all_notifications_as_read, name='mark_all_notifications_as_read'),
+    path('social/conversations/unread_count/', social_conversations_unread_count, name='social_conversations_unread_count'),
+    path('social/unread_count/', social_unread_count, name='social_unread_count'),
+    path('auth/profile/upload-image/', upload_profile_image, name='upload_profile_image'),
     
     # 🩺 AI 건강 상담 API
     path('health/consultation/', views.health_consultation, name='health_consultation'),
@@ -65,11 +85,7 @@ urlpatterns = [
     path('workout-logs/create/', views.workout_logs_create, name='workout_logs_create'),
     path('recommendations/daily/', views.recommendations_daily, name='recommendations_daily'),
     
-    # 소셜 기능 추가 엔드포인트
-    path('social/conversations/unread_count/', views.social_unread_count, name='social_unread_count'),
-    path('social/posts/feed/', views.social_posts_feed, name='social_posts_feed'),
-    path('social/posts/', views.social_posts_create, name='social_posts_create'),
-    path('social/stories/', views.social_stories, name='social_stories'),
+    # 레벨 시스템
     path('user-level/', views.user_level, name='user_level'),
     
     # 채팅봇 엔드포인트
@@ -78,10 +94,6 @@ urlpatterns = [
     path('chatbot/sessions/', views.chatbot_sessions, name='chatbot_sessions'),
     path('chatbot/sessions/active/', views.chatbot_sessions_active, name='chatbot_sessions_active'),
     
-    # 소셜 알림 엔드포인트
-    path('social/notifications/', views.social_notifications, name='social_notifications'),
-    path('social/notifications/unread_count/', views.social_notifications_unread_count, name='social_notifications_unread_count'),
-    
     # 운동 관련 추가 엔드포인트
     path('workout-videos/', views.workout_videos_list, name='workout_videos_list'),
     path('ai-workout/', views.ai_workout, name='ai_workout'),
@@ -89,13 +101,4 @@ urlpatterns = [
     # AI 기반 추천 엔드포인트
     path('ai/workout-recommendation/', views.ai_workout_recommendation, name='ai_workout_recommendation'),
     path('ai/nutrition-recommendation/', views.ai_nutrition_recommendation, name='ai_nutrition_recommendation'),
-    
-    # 소셜 피드 추가 엔드포인트
-    path('social/posts/popular/', views.social_posts_popular, name='social_posts_popular'),
-    path('social/posts/recommended/', views.social_posts_recommended, name='social_posts_recommended'),
-    
-    # 🔧 추가 엔드포인트 (모듈화된 것들은 차후 추가)
-    # path('nutrition-summary/<str:date_str>/', nutrition_summary, name='nutrition_summary'),
-    # path('social/notifications/mark_all_as_read/', mark_all_notifications_as_read, name='mark_all_notifications_as_read'),
-    # path('auth/profile/upload-image/', upload_profile_image, name='upload_profile_image'),
 ]

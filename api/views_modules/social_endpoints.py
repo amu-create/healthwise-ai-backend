@@ -38,7 +38,29 @@ def social_feed(request):
 @permission_classes([AllowAny])
 def social_posts_feed(request):
     """소셜 포스트 피드"""
-    return social_feed(request)
+    # 목 데이터 생성
+    posts = []
+    for i in range(10):
+        posts.append({
+            'id': i + 1,
+            'author': {
+                'id': random.randint(1, 100),
+                'username': f'user{random.randint(1, 100)}',
+                'profile_image': None
+            },
+            'content': f'운동 {random.randint(30, 120)}분 완료! 💪',
+            'created_at': (timezone.now() - timedelta(hours=random.randint(1, 48))).isoformat(),
+            'likes_count': random.randint(0, 50),
+            'comments_count': random.randint(0, 20),
+            'is_liked': False
+        })
+    
+    return Response({
+        'posts': posts,
+        'total': len(posts),
+        'page': 1,
+        'has_next': False
+    })
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -297,3 +319,18 @@ def upload_profile_image(request):
             'success': False,
             'error': f'Error uploading profile image: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# 추가 소셜 기능들
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def social_conversations_unread_count(request):
+    """읽지 않은 대화 개수"""
+    return Response({
+        'unread_count': random.randint(0, 5)
+    })
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def social_posts_list(request):
+    """포스트 목록"""
+    return social_posts_feed(request)
