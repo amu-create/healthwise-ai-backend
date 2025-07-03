@@ -1,9 +1,211 @@
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from datetime import datetime
+from datetime import datetime, timedelta
+from django.utils import timezone
 import random
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def social_feed(request):
+    """소셜 피드 (게스트도 접근 가능)"""
+    # 목 데이터 생성
+    posts = []
+    for i in range(10):
+        posts.append({
+            'id': i + 1,
+            'author': {
+                'id': random.randint(1, 100),
+                'username': f'user{random.randint(1, 100)}',
+                'profile_image': None
+            },
+            'content': f'운동 {random.randint(30, 120)}분 완료! 💪',
+            'created_at': (timezone.now() - timedelta(hours=random.randint(1, 48))).isoformat(),
+            'likes_count': random.randint(0, 50),
+            'comments_count': random.randint(0, 20),
+            'is_liked': False
+        })
+    
+    return Response({
+        'posts': posts,
+        'total': len(posts),
+        'page': 1,
+        'has_next': False
+    })
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def social_posts_feed(request):
+    """소셜 포스트 피드"""
+    return social_feed(request)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def social_posts_create(request):
+    """새 포스트 작성"""
+    data = request.data
+    
+    # 간단한 검증
+    if not data.get('content'):
+        return Response({
+            'error': 'Content is required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # 목 응답
+    new_post = {
+        'id': random.randint(100, 999),
+        'author': {
+            'id': request.user.id,
+            'username': request.user.username,
+            'profile_image': None
+        },
+        'content': data['content'],
+        'created_at': timezone.now().isoformat(),
+        'likes_count': 0,
+        'comments_count': 0,
+        'is_liked': False
+    }
+    
+    return Response(new_post, status=status.HTTP_201_CREATED)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def social_posts_popular(request):
+    """인기 포스트"""
+    posts = []
+    for i in range(5):
+        posts.append({
+            'id': i + 1,
+            'author': {
+                'id': random.randint(1, 100),
+                'username': f'popular_user{random.randint(1, 20)}',
+                'profile_image': None
+            },
+            'content': f'오늘의 운동 완료! 🏃‍♂️ #{random.choice(["헬스", "러닝", "요가", "필라테스"])}',
+            'created_at': (timezone.now() - timedelta(hours=random.randint(1, 24))).isoformat(),
+            'likes_count': random.randint(100, 500),
+            'comments_count': random.randint(20, 100),
+            'is_liked': False
+        })
+    
+    return Response({
+        'posts': posts,
+        'total': len(posts)
+    })
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def social_posts_recommended(request):
+    """추천 포스트"""
+    posts = []
+    for i in range(8):
+        posts.append({
+            'id': i + 100,
+            'author': {
+                'id': random.randint(1, 100),
+                'username': f'recommend_user{random.randint(1, 30)}',
+                'profile_image': None
+            },
+            'content': f'운동 팁: {random.choice(["물을 충분히 마시세요", "스트레칭을 잊지 마세요", "휴식도 중요해요", "꾸준함이 핵심입니다"])}',
+            'created_at': (timezone.now() - timedelta(hours=random.randint(1, 72))).isoformat(),
+            'likes_count': random.randint(30, 200),
+            'comments_count': random.randint(5, 50),
+            'is_liked': False
+        })
+    
+    return Response({
+        'posts': posts,
+        'total': len(posts)
+    })
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def social_stories(request):
+    """스토리 목록"""
+    stories = []
+    for i in range(10):
+        stories.append({
+            'id': i + 1,
+            'user': {
+                'id': random.randint(1, 100),
+                'username': f'story_user{random.randint(1, 50)}',
+                'profile_image': None
+            },
+            'preview_image': None,
+            'created_at': (timezone.now() - timedelta(hours=random.randint(1, 23))).isoformat(),
+            'expires_at': (timezone.now() + timedelta(hours=random.randint(1, 23))).isoformat(),
+            'is_viewed': random.choice([True, False])
+        })
+    
+    return Response({
+        'stories': stories,
+        'total': len(stories)
+    })
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def social_notifications(request):
+    """알림 목록"""
+    notifications = []
+    notification_types = ['like', 'comment', 'follow', 'mention']
+    
+    for i in range(15):
+        notification_type = random.choice(notification_types)
+        notifications.append({
+            'id': i + 1,
+            'type': notification_type,
+            'message': f'{random.choice(["user1", "user2", "user3"])}님이 회원님의 게시물을 좋아합니다.',
+            'created_at': (timezone.now() - timedelta(hours=random.randint(1, 168))).isoformat(),
+            'is_read': random.choice([True, False]),
+            'related_user': {
+                'id': random.randint(1, 100),
+                'username': f'user{random.randint(1, 100)}',
+                'profile_image': None
+            }
+        })
+    
+    return Response({
+        'notifications': notifications,
+        'total': len(notifications),
+        'unread_count': len([n for n in notifications if not n['is_read']])
+    })
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def social_notifications_unread_count(request):
+    """읽지 않은 알림 개수"""
+    return Response({
+        'unread_count': random.randint(0, 10)
+    })
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def like_post(request, post_id):
+    """포스트 좋아요"""
+    action = request.data.get('action', 'like')
+    
+    if action not in ['like', 'unlike']:
+        return Response({
+            'error': 'Invalid action'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    return Response({
+        'success': True,
+        'action': action,
+        'post_id': post_id,
+        'likes_count': random.randint(1, 100)
+    })
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def social_unread_count(request):
+    """읽지 않은 소셜 알림 수"""
+    return Response({
+        'messages': random.randint(0, 5),
+        'notifications': random.randint(0, 10),
+        'total': random.randint(0, 15)
+    })
 
 @api_view(['POST', 'OPTIONS'])
 @permission_classes([AllowAny])
