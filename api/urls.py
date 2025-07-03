@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 from . import views_nutrition
 from .views_modules.nutrition_summary import nutrition_summary
+from .views_modules.workout_db import workout_logs_db
 from .views_modules.social_endpoints import (
     social_notifications, social_notifications_unread_count,
     social_posts_feed, social_posts_create, social_posts_popular,
@@ -81,8 +82,9 @@ urlpatterns = [
     # 🏥 인증된 사용자 엔드포인트
     path('profile/', views.user_profile, name='user_profile'),
     path('fitness-profile/', views.fitness_profile, name='fitness_profile'),
-    path('workout-logs/', views.workout_logs, name='workout_logs'),
-    path('workout-logs/create/', views.workout_logs_create, name='workout_logs_create'),
+    path('workout-logs/', workout_logs_db, name='workout_logs_db'),  # 🔥 DB 연동 API
+    path('workout-logs/create/', workout_logs_db, name='workout_logs_create_db'),  # 🔥 DB 연동 API
+    path('workout-logs/legacy/', views.workout_logs, name='workout_logs_legacy'),  # 기존 API 백업
     path('recommendations/daily/', views.recommendations_daily, name='recommendations_daily'),
     
     # 레벨 시스템

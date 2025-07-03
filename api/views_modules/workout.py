@@ -9,6 +9,8 @@ from ..services.data import EXERCISE_DATA, ROUTINE_DATA
 from ..services.youtube_service import get_workout_videos
 from ..services.social_workout_service import social_workout_service
 from ..ai_service import get_chatbot
+from ..models import WorkoutLog, WorkoutSession
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
