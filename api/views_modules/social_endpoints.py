@@ -168,30 +168,27 @@ def social_stories(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def social_notifications(request):
-    """알림 목록 (게스트도 접근 가능)"""
+    """알림 목록 (게스트도 접근 가능) - 포트폴리오용 간단 버전"""
     notifications = []
     notification_types = ['like', 'comment', 'follow', 'mention']
     
-    for i in range(15):
+    for i in range(5):  # 간단하게 5개만
         notification_type = random.choice(notification_types)
         notifications.append({
             'id': i + 1,
             'type': notification_type,
-            'message': f'{random.choice(["user1", "user2", "user3"])}님이 회원님의 게시물을 좋아합니다.',
-            'created_at': (timezone.now() - timedelta(hours=random.randint(1, 168))).isoformat(),
+            'message': f'user{i+1}님이 회원님의 게시물을 좋아합니다.',
+            'created_at': (timezone.now() - timedelta(hours=i+1)).isoformat(),
             'is_read': random.choice([True, False]),
             'related_user': {
-                'id': random.randint(1, 100),
-                'username': f'user{random.randint(1, 100)}',
+                'id': i + 1,
+                'username': f'user{i+1}',
                 'profile_image': None
             }
         })
     
-    return Response({
-        'notifications': notifications,
-        'total': len(notifications),
-        'unread_count': len([n for n in notifications if not n['is_read']])
-    })
+    # 프론트엔드가 기대하는 간단한 배열 형식으로 반환
+    return Response(notifications)
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
