@@ -1,0 +1,35 @@
+# 기존 requirements.txt를 백업하고 최적화된 버전 생성
+# 핵심 기능만 유지하고 무거운 패키지들은 조건부 로딩
+
+# Django 핵심
+Django==4.2.11
+djangorestframework==3.14.0
+django-cors-headers==4.3.1
+psycopg2-binary==2.9.9
+dj-database-url==2.1.0
+gunicorn==21.2.0
+whitenoise==6.6.0
+python-dotenv==1.0.0
+requests==2.31.0
+
+# Redis & WebSocket
+django-redis==5.4.0
+channels==4.0.0
+channels-redis==4.1.0
+redis==5.0.1
+daphne==4.0.0
+
+# AI API만 유지 (무거운 패키지 제거)
+openai==1.12.0
+httpx==0.25.2
+google-generativeai==0.3.2
+
+# 파일 업로드
+Pillow==10.2.0
+
+# 🔥 무거운 패키지들 제거 (기능 유지하면서 속도 향상)
+# langchain 계열 - 필요시 런타임에 동적 import
+# sentence-transformers - 벡터스토어 기능 비활성화
+# chromadb - 벡터스토어 기능 비활성화  
+# scikit-learn - AI 분석 기능 간소화
+# celery - 비동기 작업 일시 비활성화
