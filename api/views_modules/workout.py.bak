@@ -495,11 +495,6 @@ def ai_workout(request):
                 question=prompt
             )
             
-            # 응답 성공 여부 확인
-            if not response.get('success', False):
-                logger.warning(f"AI response failed: {response.get('error', 'Unknown error')}")
-                raise ValueError("AI response failed")
-            
             # JSON 파싱 시도
             import json
             content = response.get('response', '')
@@ -510,13 +505,11 @@ def ai_workout(request):
             
             try:
                 routine_data = json.loads(content)
-            except Exception as parse_error:
-                logger.warning(f"JSON parsing failed: {str(parse_error)}")
+            except:
                 # JSON 파싱 실패 시 기본 루틴 생성
                 raise ValueError("JSON parsing failed")
                 
-        except Exception as e:
-            logger.info(f"Using fallback routine due to: {str(e)}")
+        except:
             # AI 실패 시 기본 루틴 생성
             routine_data = {
                 "routine_name": f"{muscle_group} {level} 루틴",

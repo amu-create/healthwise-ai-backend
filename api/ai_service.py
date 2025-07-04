@@ -38,36 +38,36 @@ class HealthAIChatbot:
             if not api_key:
                 raise ValueError("OpenAI API key not found")
                 
-            # OpenAI 클라이언트 생성
+            # OpenAI 클라이언트 생성 - Railway 배포용 수정
             try:
-                # Railway 환경에서 proxy 문제 해결
-                import httpx
+                # 환경변수에서 프록시 설정 제거
+                proxy_vars = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 
+                             'NO_PROXY', 'no_proxy', 'ALL_PROXY', 'all_proxy']
+                for var in proxy_vars:
+                    if var in os.environ:
+                        del os.environ[var]
                 
-                # proxy를 사용하지 않는 httpx 클라이언트 생성
-                http_client = httpx.Client(
-                    proxies=None,  # proxy 비활성화
-                    timeout=30.0
-                )
-                
+                # OpenAI 클라이언트 생성 (기본 설정 사용)
                 self.client = OpenAI(
                     api_key=api_key,
-                    http_client=http_client
+                    timeout=45.0,  # 타임아웃 증가
+                    max_retries=2  # 재시도 횟수 설정
                 )
-            except Exception as e:
-                # 대체 방법: 환경 변수 사용
-                logger.warning(f"Using fallback OpenAI initialization: {str(e)}")
-                os.environ['OPENAI_API_KEY'] = api_key
-                # proxy 설정 제거
-                if 'HTTP_PROXY' in os.environ:
-                    del os.environ['HTTP_PROXY']
-                if 'HTTPS_PROXY' in os.environ:
-                    del os.environ['HTTPS_PROXY']
-                if 'http_proxy' in os.environ:
-                    del os.environ['http_proxy']
-                if 'https_proxy' in os.environ:
-                    del os.environ['https_proxy']
                 
-                self.client = OpenAI()
+                # 연결 테스트
+                logger.info("Testing OpenAI connection...")
+                test_response = self.client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "user", "content": "test"}],
+                    max_tokens=5
+                )
+                logger.info("OpenAI connection successful")
+                
+            except Exception as e:
+                logger.error(f"OpenAI initialization failed: {str(e)}")
+                # 폴백 모드 설정
+                self.client = None
+                self.fallback_mode = True
             
             # 캐시 설정
             self.cache_timeout = 3600  # 1시간

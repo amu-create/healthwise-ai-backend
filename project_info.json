@@ -1,0 +1,24 @@
+{
+  "project_name": "HealthWise Backend Deploy",
+  "description": "Railway deployment-ready Django backend for HealthWise AI",
+  "path": "C:\\Users\\User\\healthwise-backend-deploy",
+  "tech_stack": [
+    "Django 5.0+",
+    "Django REST Framework",
+    "PostgreSQL",
+    "Redis",
+    "Gunicorn",
+    "WhiteNoise"
+  ],
+  "deployment": {
+    "platform": "Railway",
+    "dockerfile": true,
+    "procfile": true,
+    "environment_variables": [
+      "DATABASE_URL",
+      "REDIS_URL",
+      "SECRET_KEY",
+      "ALLOWED_HOSTS"
+    ]
+  }
+}
