@@ -54,14 +54,9 @@ class HealthAIChatbot:
                     max_retries=2  # 재시도 횟수 설정
                 )
                 
-                # 연결 테스트
-                logger.info("Testing OpenAI connection...")
-                test_response = self.client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[{"role": "user", "content": "test"}],
-                    max_tokens=5
-                )
-                logger.info("OpenAI connection successful")
+                # 연결 테스트는 첫 실제 요청 시 수행하도록 변경
+                logger.info("OpenAI client initialized (connection test skipped for faster startup)")
+                self.fallback_mode = False
                 
             except Exception as e:
                 logger.error(f"OpenAI initialization failed: {str(e)}")
@@ -79,9 +74,8 @@ class HealthAIChatbot:
                 'health': ['건강', '질병', '증상', '치료', '예방', '면역', '스트레스', '수면', '정신건강', '의학']
             }
             
-            # 벡터스토어 초기화 (필요시)
-            if VECTORSTORE_AVAILABLE and not HealthAIChatbot._embeddings:
-                self._initialize_vectorstore()
+            # 벡터스토어 초기화는 첫 사용 시 수행 (lazy loading)
+            logger.info("Vectorstore initialization deferred for faster startup")
             
             logger.info("HealthAIChatbot initialized successfully")
             
@@ -242,7 +236,14 @@ class HealthAIChatbot:
     def _search_knowledge(self, query: str, category: str) -> List[Dict]:
         """벡터스토어에서 관련 지식 검색"""
         try:
-            if not VECTORSTORE_AVAILABLE or not self._vectorstore:
+            if not VECTORSTORE_AVAILABLE:
+                return []
+            
+            # 벡터스토어가 초기화되지 않았으면 초기화
+            if not self._vectorstore and not HealthAIChatbot._embeddings:
+                self._initialize_vectorstore()
+            
+            if not self._vectorstore:
                 return []
             
             # 카테고리 기반 검색
