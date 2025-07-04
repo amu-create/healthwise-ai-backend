@@ -1,11 +1,12 @@
 """
-인증 관련 뷰 - 로그인 문제 해결 버전
+인증 관련 뷰 - 로그인 문제 해결 버전 (디버깅 강화)
 """
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from django.contrib.auth.models import User
+from django.contrib.auth import authenticate
 from django.db import transaction
 from .jwt_auth import create_user_response, authenticate_user, get_tokens_for_user
 from .serializers import UserSerializer
@@ -94,7 +95,7 @@ def register(request):
 @permission_classes([AllowAny])
 def login(request):
     """
-    사용자 로그인 - 향상된 버전
+    사용자 로그인 - 강화된 디버깅 버전
     """
     try:
         data = request.data
@@ -121,12 +122,64 @@ def login(request):
                 'error': '사용자명 또는 이메일을 입력해주세요.'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # 인증 시도
-        logger.info(f"Attempting authentication for: {username or email}")
-        user = authenticate_user(username=username, email=email, password=password)
+        # === 강화된 디버깅 섹션 ===
+        logger.info(f"Password length: {len(password)}")
+        logger.info(f"Password starts with: {password[:3]}..." if len(password) > 3 else f"Password: {password}")
         
-        if not user:
-            logger.warning(f"Authentication failed for: {username or email}")
+        # 1. 사용자 존재 확인
+        target_user = None
+        if email:
+            try:
+                target_user = User.objects.get(email=email)
+                logger.info(f"Found user by email: {target_user.username} (ID: {target_user.id})")
+            except User.DoesNotExist:
+                logger.warning(f"No user found with email: {email}")
+                return Response({
+                    'success': False,
+                    'error': '잘못된 로그인 정보입니다.'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+        elif username:
+            try:
+                target_user = User.objects.get(username=username)
+                logger.info(f"Found user by username: {target_user.username} (ID: {target_user.id})")
+            except User.DoesNotExist:
+                logger.warning(f"No user found with username: {username}")
+                return Response({
+                    'success': False,
+                    'error': '잘못된 로그인 정보입니다.'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        if not target_user:
+            logger.error("No target user found - this should not happen")
+            return Response({
+                'success': False,
+                'error': '잘못된 로그인 정보입니다.'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        # 2. 사용자 상태 확인
+        logger.info(f"User active status: {target_user.is_active}")
+        logger.info(f"User password hash preview: {target_user.password[:50]}...")
+        
+        # 3. 직접 비밀번호 검증
+        password_valid = target_user.check_password(password)
+        logger.info(f"Direct password check result: {password_valid}")
+        
+        # 4. Django authenticate 함수 테스트
+        auth_user = authenticate(username=target_user.username, password=password)
+        logger.info(f"Django authenticate result: {auth_user}")
+        logger.info(f"Django authenticate success: {auth_user is not None}")
+        
+        # 5. 우리의 authenticate_user 함수 테스트
+        custom_auth_user = authenticate_user(username=target_user.username, email=target_user.email, password=password)
+        logger.info(f"Custom authenticate_user result: {custom_auth_user}")
+        logger.info(f"Custom authenticate success: {custom_auth_user is not None}")
+        
+        # 실제 인증 결과 결정
+        if password_valid and target_user.is_active:
+            logger.info("Using direct password validation - SUCCESS")
+            user = target_user
+        else:
+            logger.warning("Authentication failed - password or user inactive")
             return Response({
                 'success': False,
                 'error': '잘못된 로그인 정보입니다.'
@@ -141,6 +194,9 @@ def login(request):
         
     except Exception as e:
         logger.error(f"Login error: {str(e)}")
+        logger.error(f"Login error type: {type(e)}")
+        import traceback
+        logger.error(f"Login error traceback: {traceback.format_exc()}")
         return Response({
             'success': False,
             'error': '로그인 중 오류가 발생했습니다.'
