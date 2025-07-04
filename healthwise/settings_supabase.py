@@ -14,9 +14,11 @@ SUPABASE_DATABASE_URL = os.environ.get('SUPABASE_DATABASE_URL', 'postgresql://po
 
 def get_supabase_database_config():
     """Get Supabase database configuration"""
-    return dj_database_url.config(
+    config = dj_database_url.config(
         default=SUPABASE_DATABASE_URL,
         conn_max_age=600,
         conn_health_checks=True,
-        options={'sslmode': 'require'},
     )
+    # SSL 설정 추가
+    config['OPTIONS'] = {'sslmode': 'require'}
+    return config

@@ -29,7 +29,7 @@ if not DEBUG:
 
 # Application definition
 INSTALLED_APPS = [
-    'daphne',  # Daphne를 맨 위에 추가 (ASGI 서버)
+    'daphne',  # Daphne�?�??�에 추�? (ASGI ?�버)
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -38,21 +38,21 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
-    'channels',  # Channels 추가
-    'django_celery_beat',  # Celery Beat 추가
-    'django_celery_results',  # Celery Results 추가
-    'storages',  # 파일 스토리지 추가
+    'channels',  # Channels 추�?
+    'django_celery_beat',  # Celery Beat 추�?
+    'django_celery_results',  # Celery Results 추�?
+    'storages',  # ?�일 ?�토리�? 추�?
     'api',  # Our API app
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
-    'api.middleware.db_check.DatabaseConnectionMiddleware',  # DB 연결 체크 추가
+    'api.middleware.db_check.DatabaseConnectionMiddleware',  # DB ?�결 체크 추�?
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',  # CSRF 다시 활성화
+    'django.middleware.csrf.CsrfViewMiddleware',  # CSRF ?�시 ?�성??
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -77,7 +77,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'healthwise.wsgi.application'
-ASGI_APPLICATION = 'healthwise.asgi.application'  # ASGI 추가
+ASGI_APPLICATION = 'healthwise.asgi.application'  # ASGI 추�?
 
 # Database with retry logic for Railway
 logger = logging.getLogger(__name__)
@@ -101,8 +101,8 @@ def get_database_config():
     # Fallback to Railway PostgreSQL
     database_url = os.environ.get('DATABASE_URL')
     
-    # Railway에서는 buildtime에 Reference Variable이 해석되지 않음
-    # 런타임에서만 사용 가능
+    # Railway?�서??buildtime??Reference Variable???�석?��? ?�음
+    # ?��??�에?�만 ?�용 가??
     if os.environ.get('RAILWAY_ENVIRONMENT'):
         logger.info("Running in Railway environment")
         if database_url:
@@ -117,7 +117,7 @@ def get_database_config():
             conn_health_checks=True,
         )
     else:
-        # 빌드 타임이나 로컬 개발용 임시 설정
+        # 빌드 ?�?�이??로컬 개발???�시 ?�정
         return {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
@@ -152,7 +152,7 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = os.environ.get('STATIC_URL', '/static/')
-STATIC_ROOT = os.environ.get('STATIC_ROOT', BASE_DIR / 'staticfiles')
+STATIC_ROOT = os.environ.get('STATIC_ROOT', '/app/staticfiles')
 
 # Media files
 MEDIA_URL = os.environ.get('MEDIA_URL', '/media/')
@@ -160,7 +160,7 @@ MEDIA_ROOT = os.environ.get('MEDIA_ROOT', BASE_DIR / 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# ===== CORS 설정 =====
+# ===== CORS ?�정 =====
 cors_origins_env = os.environ.get(
     'CORS_ALLOWED_ORIGINS',
     'https://healthwiseaipro.netlify.app,http://localhost:3000,http://localhost:5173'
@@ -179,7 +179,7 @@ for origin in essential_origins:
     if origin not in CORS_ALLOWED_ORIGINS:
         CORS_ALLOWED_ORIGINS.append(origin)
 
-# WebSocket을 위한 추가 설정
+# WebSocket???�한 추�? ?�정
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^wss://healthwise-api-production\.up\.railway\.app$",
     r"^ws://localhost:8000$",
@@ -220,8 +220,8 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Authentication backends
 AUTHENTICATION_BACKENDS = [
-    'django.contrib.auth.backends.ModelBackend',  # 기본 Django 인증
-    'api.supabase_auth.SupabaseAuthBackend',  # Supabase 인증 추가
+    'django.contrib.auth.backends.ModelBackend',  # 기본 Django ?�증
+    'api.supabase_auth.SupabaseAuthBackend',  # Supabase ?�증 추�?
 ]
 
 # Security settings for production
@@ -230,7 +230,7 @@ if not DEBUG:
     USE_X_FORWARDED_HOST = True
     USE_X_FORWARDED_PORT = True
     
-    # CSRF 설정 (활성화)
+    # CSRF ?�정 (?�성??
     CSRF_TRUSTED_ORIGINS = [
         'https://healthwiseaipro.netlify.app',
         'https://healthwise-ai.netlify.app',
@@ -240,14 +240,14 @@ if not DEBUG:
     SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    CSRF_COOKIE_SAMESITE = 'None'  # Cross-origin 요청을 위해
+    CSRF_COOKIE_SAMESITE = 'None'  # Cross-origin ?�청???�해
     SESSION_COOKIE_SAMESITE = 'None'
-    SESSION_COOKIE_HTTPONLY = False  # JavaScript에서 접근 가능하도록
-    CSRF_COOKIE_HTTPONLY = False  # JavaScript에서 접근 가능하도록
+    SESSION_COOKIE_HTTPONLY = False  # JavaScript?�서 ?�근 가?�하?�록
+    CSRF_COOKIE_HTTPONLY = False  # JavaScript?�서 ?�근 가?�하?�록
     
-    # 세션 쿠키가 제대로 설정되도록 도메인 설정
-    SESSION_COOKIE_DOMAIN = None  # 요청 도메인 자동 사용
-    CSRF_COOKIE_DOMAIN = None  # 요청 도메인 자동 사용
+    # ?�션 쿠키가 ?��?�??�정?�도�??�메???�정
+    SESSION_COOKIE_DOMAIN = None  # ?�청 ?�메???�동 ?�용
+    CSRF_COOKIE_DOMAIN = None  # ?�청 ?�메???�동 ?�용
     
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -259,8 +259,8 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.AllowAny',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'api.jwt_auth.CustomJWTAuthentication',  # JWT 인증 우선
-        'api.supabase_auth.SupabaseJWTAuthentication',  # Supabase JWT 인증 추가
+        'api.jwt_auth.CustomJWTAuthentication',  # JWT ?�증 ?�선
+        'api.supabase_auth.SupabaseJWTAuthentication',  # Supabase JWT ?�증 추�?
         'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_RENDERER_CLASSES': [
@@ -268,7 +268,7 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
-        'rest_framework.parsers.MultiPartParser',  # 파일 업로드를 위해 추가
+        'rest_framework.parsers.MultiPartParser',  # ?�일 ?�로?��? ?�해 추�?
         'rest_framework.parsers.FormParser',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
@@ -380,11 +380,11 @@ if redis_url:
     CELERY_TIMEZONE = TIME_ZONE
     CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
-# 파일 업로드 설정
+# ?�일 ?�로???�정
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
 
-# S3 설정 (옵션 - 환경변수로 제어)
+# S3 ?�정 (?�션 - ?�경변?�로 ?�어)
 if os.environ.get('USE_S3', 'False') == 'True':
     AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
@@ -397,18 +397,18 @@ if os.environ.get('USE_S3', 'False') == 'True':
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
     MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
 
-# LangChain 설정
+# LangChain ?�정
 LANGCHAIN_VERBOSE = DEBUG
 LANGCHAIN_CACHE = 'default' if redis_url else None
 
-# API Keys (환경변수에서 가져오기)
+# API Keys (?�경변?�에??가?�오�?
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY')
 KAKAO_API_KEY = os.environ.get('KAKAO_API_KEY')
 
-# 세션 설정
+# ?�션 ?�정
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-SESSION_COOKIE_AGE = 86400 * 30  # 30일
+SESSION_COOKIE_AGE = 86400 * 30  # 30??
 SESSION_SAVE_EVERY_REQUEST = True
-SESSION_COOKIE_NAME = 'healthwise_sessionid'  # 커스텀 세션 쿠키 이름
+SESSION_COOKIE_NAME = 'healthwise_sessionid'  # 커스?� ?�션 쿠키 ?�름
