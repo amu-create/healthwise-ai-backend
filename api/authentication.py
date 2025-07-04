@@ -28,11 +28,15 @@ class SimpleTokenAuthentication(BaseAuthentication):
         
         # 사용자 ID가 헤더에 있는 경우 우선 처리
         user_id = request.META.get('HTTP_X_USER_ID')
-        if user_id:
+        if user_id and token:  # 토큰도 함께 확인
             logger.debug(f"X-User-ID header found: {user_id}")
             try:
                 user = User.objects.get(id=user_id)
                 logger.info(f"Authenticated user from X-User-ID: {user.username}")
+                # 프로필 확인 및 자동 생성
+                from ..models import UserProfile
+                if not hasattr(user, 'profile'):
+                    UserProfile.objects.get_or_create(user=user)
                 return (user, token)
             except User.DoesNotExist:
                 logger.warning(f"User with ID {user_id} not found")
