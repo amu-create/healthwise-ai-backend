@@ -9,7 +9,7 @@ from ..services.data import EXERCISE_DATA, ROUTINE_DATA
 from ..services.youtube_service import get_workout_videos
 from ..services.social_workout_service import social_workout_service
 from ..ai_service import get_chatbot
-from ..models import WorkoutLog, WorkoutSession
+from ..models import WorkoutLog, WorkoutSession, WorkoutRoutine, Exercise, RoutineExercise
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -37,8 +37,63 @@ def exercise_list(request):
 def workout_routines(request):
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
+    
+    # 기본 루틴 데이터
+    routines = ROUTINE_DATA.copy()
+    
+    # 로그인 사용자의 경우 DB에서 저장된 루틴도 가져오기
+    if request.user.is_authenticated:
+        try:
+            # 사용자의 루틴 가져오기
+            user_routines = WorkoutRoutine.objects.filter(
+                user=request.user
+            ).prefetch_related('exercises', 'routineexercise_set').order_by('-created_at')
+            
+            # DB 루틴을 프론트엔드 형식으로 변환
+            for routine in user_routines:
+                routine_exercises = []
+                
+                # RoutineExercise를 통해 운동 정보 가져오기
+                for re in routine.routineexercise_set.all().order_by('order'):
+                    exercise = re.exercise
+                    routine_exercises.append({
+                        'id': exercise.id,
+                        'name': exercise.name,
+                        'sets': re.sets,
+                        'reps': re.reps,
+                        'duration': re.duration,
+                        'rest_time': re.rest_time,
+                        'category': exercise.category,
+                        'difficulty': exercise.difficulty,
+                        'description': exercise.description,
+                        'gif_url': f'/static/images/exercises/{exercise.name.lower().replace(" ", "_")}.gif',
+                        'order': re.order
+                    })
+                
+                # 루틴 객체 생성
+                routine_data = {
+                    'id': routine.id,
+                    'name': routine.name,
+                    'description': routine.description,
+                    'level': routine.difficulty,
+                    'total_duration': routine.total_duration,
+                    'exercises': routine_exercises,
+                    'created_at': routine.created_at.isoformat(),
+                    'updated_at': routine.updated_at.isoformat(),
+                    'is_ai_generated': True,
+                    'is_custom': True
+                }
+                
+                # 사용자 루틴을 목록 앞에 추가
+                routines.insert(0, routine_data)
+                
+            logger.info(f"Found {len(user_routines)} saved routines for user {request.user.id}")
+            
+        except Exception as e:
+            logger.error(f"Error loading user routines: {str(e)}")
+    
     # 프론트엔드가 배열을 기대하므로 배열로 반환
-    return Response(ROUTINE_DATA)
+    return Response(routines)
 
 @api_view(['GET', 'OPTIONS'])
 @permission_classes([AllowAny])
@@ -575,17 +630,85 @@ def ai_workout(request):
                 'notes': exercise_data.get('notes', '정확한 자세로 천천히 수행하세요')
             })
         
+        # DB에 루틴 저장 (로그인 사용자만)
+        saved_routine = None
+        if request.user.is_authenticated:
+            try:
+                # WorkoutRoutine 생성
+                saved_routine = WorkoutRoutine.objects.create(
+                    user=request.user,
+                    name=routine_data.get('routine_name', f'{muscle_group} {level} 루틴'),
+                    description=f"AI가 생성한 {muscle_group} 운동 루틴 ({level})",
+                    total_duration=routine_data.get('total_duration', duration),
+                    difficulty=level,
+                    is_public=False
+                )
+                
+                # 각 운동을 RoutineExercise로 저장
+                for idx, exercise_data in enumerate(routine_data.get('exercises', [])):
+                    exercise_name = exercise_data.get('name', '')
+                    
+                    # 유효한 운동인지 확인
+                    if exercise_name in VALID_EXERCISES_WITH_GIF:
+                        # Exercise 찾기 또는 생성
+                        exercise, created = Exercise.objects.get_or_create(
+                            name=exercise_name,
+                            defaults={
+                                'category': muscle_group,
+                                'description': f'{muscle_group} 운동',
+                                'instructions': exercise_data.get('notes', '정확한 자세로 천천히 수행하세요'),
+                                'duration': 5,  # 기본값
+                                'calories_per_minute': 8.0,
+                                'difficulty': 'easy' if level == '초급' else ('medium' if level == '중급' else 'hard'),
+                                'muscle_groups': [muscle_group]
+                            }
+                        )
+                        
+                        # RoutineExercise 생성
+                        RoutineExercise.objects.create(
+                            routine=saved_routine,
+                            exercise=exercise,
+                            sets=exercise_data.get('sets', 3),
+                            reps=exercise_data.get('reps', 12),
+                            rest_time=exercise_data.get('rest_seconds', 60),
+                            order=idx
+                        )
+                
+                logger.info(f"AI 루틴 DB 저장 완료: {saved_routine.id}")
+                
+            except Exception as e:
+                logger.error(f"AI 루틴 DB 저장 실패: {str(e)}")
+                saved_routine = None
+        
         # AI 생성 루틴 객체
-        routine = {
-            'id': random.randint(1000, 9999),  # 임시 ID
-            'name': routine_data['routine_name'],
-            'exercises': exercises_with_details,
-            'level': level,
-            'is_ai_generated': True,
-            'created_at': datetime.now().isoformat(),
-            'updated_at': datetime.now().isoformat(),
-            'is_guest': is_guest
-        }
+        if saved_routine:
+            # DB에 저장된 경우 실제 ID 사용
+            routine = {
+                'id': saved_routine.id,
+                'name': saved_routine.name,
+                'exercises': exercises_with_details,
+                'level': level,
+                'total_duration': saved_routine.total_duration,
+                'is_ai_generated': True,
+                'created_at': saved_routine.created_at.isoformat(),
+                'updated_at': saved_routine.updated_at.isoformat(),
+                'is_guest': False,
+                'is_saved': True
+            }
+        else:
+            # 게스트이거나 저장 실패시 임시 ID 사용
+            routine = {
+                'id': f'temp_{random.randint(1000, 9999)}',
+                'name': routine_data['routine_name'],
+                'exercises': exercises_with_details,
+                'level': level,
+                'total_duration': routine_data.get('total_duration', duration),
+                'is_ai_generated': True,
+                'created_at': datetime.now().isoformat(),
+                'updated_at': datetime.now().isoformat(),
+                'is_guest': is_guest,
+                'is_saved': False
+            }
         
         response_data = {
             'success': True,
