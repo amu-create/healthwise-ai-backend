@@ -15,13 +15,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . .
 
-# Collect static files
-RUN python manage.py collectstatic --noinput
-
 # Add wait_for_db script
 COPY wait_for_db.py .
 
+# Set executable permissions for start script
+RUN chmod +x railway-start.sh
+
 # Run migrations and start server
-CMD python wait_for_db.py && \
-    python manage.py migrate --noinput && \
-    gunicorn healthwise.wsgi:application --bind 0.0.0.0:${PORT:-8000}
+CMD ["./railway-start.sh"]
