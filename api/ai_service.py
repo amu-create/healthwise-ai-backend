@@ -355,9 +355,19 @@ class HealthAIChatbot:
     
     def get_health_consultation(self, user_data: Dict, question: str) -> Dict:
         """건강 상담 API"""
+        # 사용자 인증 상태 로깅
+        is_authenticated = user_data.get('is_authenticated', False)
+        username = user_data.get('username', 'Guest')
+        user_id = user_data.get('user_id', 'guest')
+        
+        logger.info(f"Health consultation - User: {username} (ID: {user_id}), Authenticated: {is_authenticated}")
+        
+        # 인증된 사용자인 경우 실제 이름 사용
+        display_name = username if is_authenticated and username != 'Guest' else 'Guest'
+        
         return self.get_response(
-            user_id=str(user_data.get('user_id', 'guest')),
-            username=user_data.get('username', 'Guest'),
+            user_id=str(user_id),
+            username=display_name,
             question=question,
             session_data=user_data
         )

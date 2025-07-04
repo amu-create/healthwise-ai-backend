@@ -239,38 +239,53 @@ def chatbot(request):
         message = data.get('message', '')
         language = data.get('language', 'ko')
         
+        # 로깅 추가
+        logger.info(f"Chatbot request - User authenticated: {request.user.is_authenticated}")
+        logger.info(f"User: {request.user.username if request.user.is_authenticated else 'Anonymous'}")
+        logger.info(f"Session key: {request.session.session_key}")
+        
         # 사용자 정보 수집
         user_data = {
             'user_id': request.user.id if request.user.is_authenticated else 'guest',
             'username': request.user.username if request.user.is_authenticated else 'Guest',
+            'is_authenticated': request.user.is_authenticated
         }
         
         # 프로필 정보 추가
-        if request.user.is_authenticated and hasattr(request.user, 'profile'):
-            profile = request.user.profile
-            user_data.update({
-                'birth_date': profile.birth_date,
-                'gender': profile.gender,
-                'height': profile.height,
-                'weight': profile.weight,
-                'diseases': profile.diseases,
-                'allergies': profile.allergies,
-                'fitness_level': profile.fitness_level
-            })
+        if request.user.is_authenticated:
+            try:
+                profile = UserProfile.objects.get(user=request.user)
+                user_data.update({
+                    'birth_date': profile.birth_date,
+                    'gender': profile.gender,
+                    'height': profile.height,
+                    'weight': profile.weight,
+                    'diseases': profile.diseases,
+                    'allergies': profile.allergies,
+                    'fitness_level': profile.fitness_level
+                })
+                logger.info(f"Profile found for user {request.user.username}")
+            except UserProfile.DoesNotExist:
+                logger.warning(f"No profile found for user {request.user.username}")
         
         # AI 챗봇 사용
         chatbot = get_chatbot()
         result = chatbot.get_health_consultation(user_data, message)
         
         # 응답 형식 맞추기
-        return Response({
+        response_data = {
             'success': result.get('success', True),
             'response': result.get('response', ''),
             'raw_response': result.get('response', ''),
             'sources': [],
             'user_context': user_data,
-            'session_id': 'guest-session' if not request.user.is_authenticated else f"session-{request.user.id}"
-        })
+            'session_id': f"session-{request.user.id}" if request.user.is_authenticated else 'guest-session',
+            'is_authenticated': request.user.is_authenticated
+        }
+        
+        logger.info(f"Chatbot response - Session ID: {response_data['session_id']}")
+        
+        return Response(response_data)
         
     except Exception as e:
         return Response({
