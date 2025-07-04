@@ -1,6 +1,8 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from . import views
 from . import views_nutrition
+from . import views_auth
 from .views_modules.nutrition_summary import nutrition_summary
 from .views_modules.workout_db import workout_logs_db, workout_logs_create_db
 from .views_modules.social_endpoints import (
@@ -11,15 +13,23 @@ from .views_modules.social_endpoints import (
     upload_profile_image, like_post
 )
 
+# DRF Router for ViewSets
+router = DefaultRouter()
+
 urlpatterns = [
-    # 기본 API
+    # 인증 관련 API (JWT 기반)
+    path('auth/register/', views_auth.register, name='auth_register'),
+    path('auth/login/', views_auth.login, name='auth_login'),
+    path('auth/logout/', views_auth.logout, name='auth_logout'),
+    path('auth/user/', views_auth.get_user, name='auth_user'),
+    path('auth/user/update/', views_auth.update_user, name='auth_user_update'),
+    path('auth/refresh/', views_auth.refresh_token, name='auth_refresh'),
+    path('auth/guest/', views_auth.guest_login, name='auth_guest'),
+    
+    # 기존 엔드포인트 유지 (하위 호환성)
     path('test/', views.test_api, name='test_api'),
     path('guest/profile/', views.guest_profile, name='guest_profile'),
-    path('guest/login/', views.guest_login, name='guest_login'),
     path('auth/csrf/', views.auth_csrf, name='auth_csrf'),
-    path('auth/login/', views.auth_login, name='auth_login'),
-    path('auth/logout/', views.auth_logout, name='auth_logout'),
-    path('auth/register/', views.auth_register, name='auth_register'),
     
     # Health check endpoints
     path('health/', views.api_health, name='api_health'),
@@ -103,4 +113,7 @@ urlpatterns = [
     # AI 기반 추천 엔드포인트
     path('ai/workout-recommendation/', views.ai_workout_recommendation, name='ai_workout_recommendation'),
     path('ai/nutrition-recommendation/', views.ai_nutrition_recommendation, name='ai_nutrition_recommendation'),
+    
+    # Router URLs
+    path('', include(router.urls)),
 ]
