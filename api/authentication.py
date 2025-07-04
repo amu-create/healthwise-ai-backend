@@ -1,6 +1,9 @@
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from django.contrib.auth.models import User
+import logging
+
+logger = logging.getLogger(__name__)
 
 class SimpleTokenAuthentication(BaseAuthentication):
     """
@@ -20,24 +23,34 @@ class SimpleTokenAuthentication(BaseAuthentication):
         
         token = parts[1]
         
+        # 로깅 추가
+        logger.debug(f"Auth token: {token[:20]}...")
+        
+        # 사용자 ID가 헤더에 있는 경우 우선 처리
+        user_id = request.META.get('HTTP_X_USER_ID')
+        if user_id:
+            logger.debug(f"X-User-ID header found: {user_id}")
+            try:
+                user = User.objects.get(id=user_id)
+                logger.info(f"Authenticated user from X-User-ID: {user.username}")
+                return (user, token)
+            except User.DoesNotExist:
+                logger.warning(f"User with ID {user_id} not found")
+                pass
+        
         # 토큰 검증 (간단한 방식)
         # "authenticated"도 유효한 토큰으로 처리
         if token in ['dummy-token', 'authenticated']:
             # 세션에서 사용자 정보 가져오기
-            if request.session.get('_auth_user_id'):
+            session_user_id = request.session.get('_auth_user_id')
+            if session_user_id:
                 try:
-                    user = User.objects.get(id=request.session.get('_auth_user_id'))
+                    user = User.objects.get(id=session_user_id)
+                    logger.info(f"Authenticated user from session: {user.username}")
                     return (user, token)
                 except User.DoesNotExist:
+                    logger.warning(f"Session user with ID {session_user_id} not found")
                     pass
         
-        # 사용자 ID가 헤더에 있는 경우
-        user_id = request.META.get('HTTP_X_USER_ID')
-        if user_id and token:
-            try:
-                user = User.objects.get(id=user_id)
-                return (user, token)
-            except User.DoesNotExist:
-                pass
-        
+        logger.debug("No valid authentication found")
         return None
