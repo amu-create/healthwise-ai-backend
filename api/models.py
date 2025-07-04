@@ -5,6 +5,9 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     
+    # Supabase 연동
+    supabase_id = models.UUIDField(null=True, blank=True, unique=True, db_index=True, help_text="Supabase user ID")
+    
     # 기본 정보
     birth_date = models.DateField(null=True, blank=True)
     gender = models.CharField(max_length=10, choices=[('M', 'Male'), ('F', 'Female'), ('O', 'Other')], null=True, blank=True)

@@ -82,8 +82,23 @@ ASGI_APPLICATION = 'healthwise.asgi.application'  # ASGI 추가
 # Database with retry logic for Railway
 logger = logging.getLogger(__name__)
 
+# Import Supabase configuration
+try:
+    from .settings_supabase import get_supabase_database_config, SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY
+    USE_SUPABASE = True
+except ImportError:
+    USE_SUPABASE = False
+
 def get_database_config():
     """Get database configuration with better error handling"""
+    # Check if we should use Supabase
+    use_supabase = os.environ.get('USE_SUPABASE', 'True') == 'True'
+    
+    if use_supabase and USE_SUPABASE:
+        logger.info("Using Supabase database")
+        return get_supabase_database_config()
+    
+    # Fallback to Railway PostgreSQL
     database_url = os.environ.get('DATABASE_URL')
     
     # Railway에서는 buildtime에 Reference Variable이 해석되지 않음
@@ -203,6 +218,12 @@ CORS_ALLOW_HEADERS = [
 # Static files configuration
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+# Authentication backends
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',  # 기본 Django 인증
+    'api.supabase_auth.SupabaseAuthBackend',  # Supabase 인증 추가
+]
+
 # Security settings for production
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -239,6 +260,7 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'api.jwt_auth.CustomJWTAuthentication',  # JWT 인증 우선
+        'api.supabase_auth.SupabaseJWTAuthentication',  # Supabase JWT 인증 추가
         'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_RENDERER_CLASSES': [

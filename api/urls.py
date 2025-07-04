@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from . import views
 from . import views_nutrition
 from . import views_auth
+from . import views_supabase_auth
 from .views_modules.nutrition_summary import nutrition_summary
 from .views_modules.workout_db import workout_logs_db, workout_logs_create_db
 from .views_modules.social_endpoints import (
@@ -25,6 +26,11 @@ urlpatterns = [
     path('auth/user/update/', views_auth.update_user, name='auth_user_update'),
     path('auth/refresh/', views_auth.refresh_token, name='auth_refresh'),
     path('auth/guest/', views_auth.guest_login, name='auth_guest'),
+    
+    # Supabase 인증 API
+    path('auth/supabase/', views_supabase_auth.supabase_auth, name='supabase_auth'),
+    path('auth/supabase/register/', views_supabase_auth.supabase_register, name='supabase_register'),
+    path('auth/supabase/login/', views_supabase_auth.supabase_login, name='supabase_login'),
     
     # 기존 엔드포인트 유지 (하위 호환성)
     path('test/', views.test_api, name='test_api'),
