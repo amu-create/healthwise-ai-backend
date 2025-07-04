@@ -168,8 +168,33 @@ def workout_logs(request):
                     'error': 'routine_id is required'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            # duration을 정수로 변환
-            duration = int(data.get('duration', 30))
+            # duration 값 확인 및 안전한 정수 변환 (첫 번째)
+            try:
+                duration_value = data.get('duration', 30)
+                logger.info(f"Received duration value: {duration_value} (type: {type(duration_value)})")
+                
+                if duration_value is None or duration_value == '':
+                    duration = 30
+                elif isinstance(duration_value, str):
+                    # 문자열인 경우 숫자만 추출하여 변환
+                    import re
+                    numeric_str = re.sub(r'[^\d.]', '', str(duration_value))
+                    duration = int(float(numeric_str)) if numeric_str else 30
+                else:
+                    # 숫자인 경우 NaN 체크 후 변환
+                    if duration_value != duration_value:  # NaN 체크
+                        duration = 30
+                    else:
+                        duration = int(float(duration_value))
+                
+                # 유효 범위 검증 (1분~300분)
+                if duration < 1 or duration > 300:
+                    logger.warning(f"Duration {duration} out of range, using default 30")
+                    duration = 30
+                    
+            except (ValueError, TypeError, OverflowError) as e:
+                logger.warning(f"Invalid duration value: {data.get('duration')}, using default 30. Error: {str(e)}")
+                duration = 30
             
             # 운동 로그 생성
             workout_log = {
@@ -192,6 +217,7 @@ def workout_logs(request):
             return Response(workout_log, status=status.HTTP_201_CREATED)
             
         except Exception as e:
+            logger.error(f'Workout log creation error: {str(e)}')
             return Response({
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -236,6 +262,7 @@ def workout_logs_create(request):
     
     try:
         data = request.data
+        logger.info(f"Workout log create request data: {data}")
         
         # 필수 필드 검증
         if not data.get('routine_id'):
@@ -243,8 +270,33 @@ def workout_logs_create(request):
                 'error': 'routine_id is required'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # duration 값 확인 및 정수로 변환
-        duration = int(data.get('duration', 30))
+        # duration 값 확인 및 안전한 정수 변환 (두 번째)
+        try:
+            duration_value = data.get('duration', 30)
+            logger.info(f"Received duration value: {duration_value} (type: {type(duration_value)})")
+            
+            if duration_value is None or duration_value == '':
+                duration = 30
+            elif isinstance(duration_value, str):
+                # 문자열인 경우 숫자만 추출하여 변환
+                import re
+                numeric_str = re.sub(r'[^\d.]', '', str(duration_value))
+                duration = int(float(numeric_str)) if numeric_str else 30
+            else:
+                # 숫자인 경우 NaN 체크 후 변환
+                if duration_value != duration_value:  # NaN 체크
+                    duration = 30
+                else:
+                    duration = int(float(duration_value))
+            
+            # 유효 범위 검증 (1분~300분)
+            if duration < 1 or duration > 300:
+                logger.warning(f"Duration {duration} out of range, using default 30")
+                duration = 30
+                
+        except (ValueError, TypeError, OverflowError) as e:
+            logger.warning(f"Invalid duration value: {data.get('duration')}, using default 30. Error: {str(e)}")
+            duration = 30
         
         # 칼로리 계산 (운동 강도에 따라 다르게 계산)
         intensity_multiplier = {
@@ -288,15 +340,20 @@ def workout_logs_create(request):
         social_post = None
         
         if share_to_social and request.user.is_authenticated:  # 게스트는 소셜 공유 불가
-            user_id = request.user.id
-            content = data.get('social_content', f'{duration}분 동안 운동을 완료했습니다! 💪')
-            
-            # 소셜 포스트 생성
-            social_post = social_workout_service.create_workout_post(
-                user_id=user_id,
-                workout_log_id=workout_log['id'],
-                content=content
-            )
+            try:
+                user_id = request.user.id
+                content = data.get('social_content', f'{duration}분 동안 운동을 완료했습니다! 💪')
+                
+                # 소셜 포스트 생성
+                social_post = social_workout_service.create_workout_post(
+                    user_id=user_id,
+                    workout_log_id=workout_log['id'],
+                    content=content
+                )
+            except Exception as social_error:
+                logger.warning(f'Social post creation failed: {str(social_error)}')
+                # 소셜 포스트 실패해도 워크아웃 로그는 성공 처리
+                social_post = None
         
         # 응답 데이터
         response_data = {
