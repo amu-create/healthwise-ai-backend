@@ -5,7 +5,7 @@ from .base import (
     fitness_profile, recommendations_daily, user_level
 )
 from .auth import (
-    auth_csrf, auth_login, auth_logout, auth_register
+    auth_csrf, auth_login, auth_logout, auth_register, csrf_failure
 )
 from .user_profile import user_profile
 from .health import (
@@ -36,7 +36,7 @@ __all__ = [
     'guest_workout_logs', 'guest_recommendations_daily',
     'fitness_profile', 'recommendations_daily', 'user_level',
     # Auth
-    'auth_csrf', 'auth_login', 'auth_logout', 'auth_register',
+    'auth_csrf', 'auth_login', 'auth_logout', 'auth_register', 'csrf_failure',
     # User Profile
     'user_profile',
     # Health

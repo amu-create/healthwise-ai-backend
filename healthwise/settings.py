@@ -53,7 +53,7 @@ MIDDLEWARE = [
     'api.middleware.db_check.DatabaseConnectionMiddleware',  # DB 연결 체크 추가
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',  # CSRF 임시 비활성화
+    # 'django.middleware.csrf.CsrfViewMiddleware',  # CSRF 임시 비활성화
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -425,6 +425,6 @@ SESSION_COOKIE_AGE = 86400 * 30  # 30일
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_COOKIE_NAME = 'healthwise_sessionid'  # 커스텀 세션 쿠키 이름
 
-# CSRF 설정 - 임시로 완화된 설정
-CSRF_USE_SESSIONS = True  # 세션에 CSRF 토큰 저장
-CSRF_FAILURE_VIEW = 'api.views.csrf_failure'  # 커스텀 CSRF 실패 뷰
+# CSRF 완전 비활성화 (개발/테스트 목적)
+CSRF_USE_SESSIONS = False
+CSRF_COOKIE_HTTPONLY = False
