@@ -8,15 +8,21 @@ echo "Port: $PORT"
 # 환경변수 확인
 echo "Checking environment variables..."
 
-# DATABASE_URL 확인 (Railway는 환경변수를 즉시 제공함)
-if [ -z "$DATABASE_URL" ]; then
-    echo "ERROR: DATABASE_URL not found"
+# DATABASE_URL 또는 SUPABASE_DATABASE_URL 확인
+if [ -z "$DATABASE_URL" ] && [ -z "$SUPABASE_DATABASE_URL" ]; then
+    echo "ERROR: Neither DATABASE_URL nor SUPABASE_DATABASE_URL found"
     echo "Available environment variables:"
-    env | grep -E "(DATABASE|POSTGRES|DB)" | sed 's/=.*/=.../'
+    env | grep -E "(DATABASE|POSTGRES|DB|SUPABASE)" | sed 's/=.*/=.../'
     exit 1
 fi
 
-echo "DATABASE_URL found: ${DATABASE_URL:0:50}..."
+if [ -n "$SUPABASE_DATABASE_URL" ]; then
+    echo "🔗 SUPABASE_DATABASE_URL found: ${SUPABASE_DATABASE_URL:0:50}..."
+    export DATABASE_URL="$SUPABASE_DATABASE_URL"
+    echo "✅ Using Supabase database"
+elif [ -n "$DATABASE_URL" ]; then
+    echo "DATABASE_URL found: ${DATABASE_URL:0:50}..."
+fi
 
 # Redis URL 확인
 if [ -z "$REDIS_URL" ]; then
