@@ -36,7 +36,12 @@ class HealthAIChatbot:
         try:
             api_key = settings.OPENAI_API_KEY
             if not api_key:
+                logger.error("OPENAI_API_KEY not found in settings")
                 raise ValueError("OpenAI API key not found")
+            
+            # API 키 형식 검증
+            if not api_key.startswith('sk-'):
+                logger.warning("OpenAI API key format might be invalid")
                 
             # OpenAI 클라이언트 생성 - Railway 배포용 수정
             try:
@@ -50,8 +55,8 @@ class HealthAIChatbot:
                 # OpenAI 클라이언트 생성 (기본 설정 사용)
                 self.client = OpenAI(
                     api_key=api_key,
-                    timeout=45.0,  # 타임아웃 증가
-                    max_retries=2  # 재시도 횟수 설정
+                    timeout=30.0,  # 타임아웃 설정
+                    max_retries=1  # 재시도 횟수 설정
                 )
                 
                 # 연결 테스트는 첫 실제 요청 시 수행하도록 변경
@@ -228,9 +233,10 @@ class HealthAIChatbot:
             logger.error(f"Response generation failed: {str(e)}")
             return {
                 'success': False,
-                'response': "죄송합니다. 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+                'response': "죄송합니다. 일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
                 'error': str(e),
-                'response_time': time.time() - start_time
+                'response_time': time.time() - start_time,
+                'fallback': True
             }
     
     def _search_knowledge(self, query: str, category: str) -> List[Dict]:
@@ -359,6 +365,14 @@ class HealthAIChatbot:
     def generate_workout_recommendation(self, user_data: Dict) -> Dict:
         """운동 추천 생성"""
         try:
+            # API 키 확인
+            if not self.client:
+                logger.error("OpenAI client not initialized")
+                return {
+                    'success': False,
+                    'error': 'AI service temporarily unavailable',
+                    'recommendation': self._get_default_workout_recommendation()
+                }
             # birth_date로부터 나이 계산
             age = 30  # 기본값
             if 'birth_date' in user_data:

@@ -377,6 +377,8 @@ def ai_workout(request):
         return Response(status=status.HTTP_200_OK)
     
     try:
+        logger.info(f"AI workout request received: {request.data}")
+        
         data = request.data
         muscle_group = data.get('muscle_group', '전신')
         level = data.get('level', '초급')
@@ -490,6 +492,7 @@ def ai_workout(request):
         
         try:
             # AI 응답 받기
+            logger.info("Calling AI chatbot for workout generation...")
             response = chatbot.get_health_consultation(
                 user_data={'user_id': request.user.id if request.user.is_authenticated else 'guest'},
                 question=prompt
@@ -498,7 +501,7 @@ def ai_workout(request):
             # 응답 성공 여부 확인
             if not response.get('success', False):
                 logger.warning(f"AI response failed: {response.get('error', 'Unknown error')}")
-                raise ValueError("AI response failed")
+                raise ValueError(f"AI response failed: {response.get('error', 'Unknown error')}")
             
             # JSON 파싱 시도
             import json
@@ -599,8 +602,9 @@ def ai_workout(request):
         return Response(response_data)
         
     except Exception as e:
-        logger.error(f'AI workout error: {str(e)}')
+        logger.error(f'AI workout error: {str(e)}', exc_info=True)
         return Response({
             'success': False,
-            'error': f'AI workout error: {str(e)}'
+            'error': str(e),
+            'message': 'AI 운동 루틴 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
