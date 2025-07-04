@@ -12,25 +12,18 @@ logger = logging.getLogger(__name__)
 @api_view(['GET', 'PUT', 'OPTIONS'])
 @permission_classes([AllowAny])
 def user_profile(request):
-    """사용자 프로필 조회 및 수정 (단순화)"""
+    """사용자 프로필 조회 및 수정"""
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
     
-    # 간단한 게스트 체크
-    is_guest = request.headers.get('X-Is-Guest') == 'true'
-    if is_guest:
+    # 인증된 사용자 확인
+    if not request.user.is_authenticated:
         return Response({
-            'error': '게스트 사용자는 프로필에 접근할 수 없습니다.',
+            'error': '로그인이 필요합니다.',
             'is_guest': True
-        }, status=status.HTTP_403_FORBIDDEN)
+        }, status=status.HTTP_401_UNAUTHORIZED)
     
-    # 하드코딩된 사용자 (포트폴리오용)
-    try:
-        user = User.objects.get(id=1)  # 테스트 사용자
-    except User.DoesNotExist:
-        return Response({
-            'error': '사용자를 찾을 수 없습니다.'
-        }, status=status.HTTP_404_NOT_FOUND)
+    user = request.user
     
     if request.method == 'GET':
         try:
@@ -87,12 +80,18 @@ def user_profile(request):
             
             # 업데이트 가능한 필드들
             if 'birth_date' in data:
-                profile.birth_date = data['birth_date']
+                # 빈 문자열이나 None인 경우 처리
+                birth_date_value = data['birth_date']
+                if birth_date_value and birth_date_value.strip():
+                    profile.birth_date = birth_date_value
+                else:
+                    profile.birth_date = None
+                    
             if 'gender' in data:
                 profile.gender = data['gender']
-            if 'height' in data:
+            if 'height' in data and data['height']:
                 profile.height = float(data['height'])
-            if 'weight' in data:
+            if 'weight' in data and data['weight']:
                 profile.weight = float(data['weight'])
             if 'diseases' in data:
                 profile.diseases = data['diseases']
@@ -107,6 +106,8 @@ def user_profile(request):
             
             profile.save()
             
+            logger.info(f"Profile updated for user {user.username}")
+            
             return Response({
                 'success': True,
                 'message': '프로필이 업데이트되었습니다.'
@@ -115,7 +116,12 @@ def user_profile(request):
             return Response({
                 'error': '프로필을 찾을 수 없습니다.'
             }, status=status.HTTP_404_NOT_FOUND)
+        except ValueError as e:
+            return Response({
+                'error': f'입력값 오류: {str(e)}'
+            }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
+            logger.error(f"Profile update error for user {user.username}: {str(e)}")
             return Response({
                 'error': f'프로필 업데이트 오류: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
