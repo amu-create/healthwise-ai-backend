@@ -1,5 +1,5 @@
 """
-JWT 기반 인증 시스템 구현 - 로그인 문제 해결 버전
+JWT 기반 인증 시스템 구현
 """
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -56,7 +56,7 @@ def get_tokens_for_user(user):
 
 def create_user_response(user):
     """
-    사용자 정보 응답 생성 - JWT 토큰 포함 (수정된 버전)
+    사용자 정보 응답 생성
     """
     from .serializers import UserSerializer
     from .models import UserProfile
@@ -70,40 +70,31 @@ def create_user_response(user):
     
     return {
         'user': user_data,
-        'access': tokens['access'],  # 프론트엔드가 기대하는 필드명
-        'refresh': tokens['refresh'],  # 프론트엔드가 기대하는 필드명
-        'tokens': tokens,  # 기존 호환성을 위해 유지
+        'tokens': tokens,
         'isAuthenticated': True
     }
 
 
 def authenticate_user(username=None, email=None, password=None):
     """
-    사용자 인증 헬퍼 함수 - 향상된 로깅
+    사용자 인증 헬퍼 함수
     """
-    logger.info(f"Authentication attempt: username={username}, email={email}")
-    
     if email:
         # 이메일로 로그인 시도
         try:
             user = User.objects.get(email=email)
             username = user.username
-            logger.info(f"Found user by email: {username}")
         except User.DoesNotExist:
-            logger.warning(f"No user found with email: {email}")
             return None
     
     # Django 기본 인증 사용
     user = authenticate(username=username, password=password)
     
     if user and user.is_active:
-        logger.info(f"Authentication successful for user: {user.username}")
         # 프로필 자동 생성
         from .models import UserProfile
         if not hasattr(user, 'profile'):
             UserProfile.objects.create(user=user)
-            logger.info(f"Created profile for user: {user.username}")
         return user
     
-    logger.warning(f"Authentication failed for username: {username}")
     return None

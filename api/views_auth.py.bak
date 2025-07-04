@@ -1,5 +1,5 @@
 """
-인증 관련 뷰 - 로그인 문제 해결 버전
+인증 관련 뷰
 """
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -22,7 +22,6 @@ def register(request):
     """
     try:
         data = request.data
-        logger.info(f"Registration attempt with data: {list(data.keys())}")
         
         # 필수 필드 검증
         username = data.get('username')
@@ -30,24 +29,18 @@ def register(request):
         password = data.get('password')
         
         if not all([username, email, password]):
-            logger.warning("Registration failed: Missing required fields")
             return Response({
-                'success': False,
                 'error': '모든 필드를 입력해주세요.'
             }, status=status.HTTP_400_BAD_REQUEST)
         
         # 중복 검사
         if User.objects.filter(username=username).exists():
-            logger.warning(f"Registration failed: Username {username} already exists")
             return Response({
-                'success': False,
                 'error': '이미 사용중인 사용자명입니다.'
             }, status=status.HTTP_400_BAD_REQUEST)
         
         if User.objects.filter(email=email).exists():
-            logger.warning(f"Registration failed: Email {email} already exists")
             return Response({
-                'success': False,
                 'error': '이미 사용중인 이메일입니다.'
             }, status=status.HTTP_400_BAD_REQUEST)
         
@@ -58,7 +51,6 @@ def register(request):
                 email=email,
                 password=password
             )
-            logger.info(f"User created: {username}")
             
             # 프로필 정보가 있으면 업데이트
             profile_data = data.get('profile', {})
@@ -73,11 +65,9 @@ def register(request):
                         setattr(profile, field, profile_data[field])
                 
                 profile.save()
-                logger.info(f"Profile updated for user: {username}")
         
         # 응답 생성
         response_data = create_user_response(user)
-        response_data['success'] = True  # 중요: 프론트엔드가 기대하는 success 필드
         logger.info(f"User registered successfully: {username}")
         
         return Response(response_data, status=status.HTTP_201_CREATED)
@@ -85,7 +75,6 @@ def register(request):
     except Exception as e:
         logger.error(f"Registration error: {str(e)}")
         return Response({
-            'success': False,
             'error': '회원가입 중 오류가 발생했습니다.'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -94,47 +83,36 @@ def register(request):
 @permission_classes([AllowAny])
 def login(request):
     """
-    사용자 로그인 - 향상된 버전
+    사용자 로그인
     """
     try:
         data = request.data
-        logger.info(f"Login attempt with data keys: {list(data.keys())}")
         
         # 로그인 정보 추출
         username = data.get('username')
         email = data.get('email')
         password = data.get('password')
         
-        logger.info(f"Login attempt - username: {username}, email: {email}")
-        
         if not password:
-            logger.warning("Login failed: No password provided")
             return Response({
-                'success': False,
                 'error': '비밀번호를 입력해주세요.'
             }, status=status.HTTP_400_BAD_REQUEST)
         
         if not (username or email):
-            logger.warning("Login failed: No username or email provided")
             return Response({
-                'success': False,
                 'error': '사용자명 또는 이메일을 입력해주세요.'
             }, status=status.HTTP_400_BAD_REQUEST)
         
         # 인증 시도
-        logger.info(f"Attempting authentication for: {username or email}")
         user = authenticate_user(username=username, email=email, password=password)
         
         if not user:
-            logger.warning(f"Authentication failed for: {username or email}")
             return Response({
-                'success': False,
                 'error': '잘못된 로그인 정보입니다.'
             }, status=status.HTTP_401_UNAUTHORIZED)
         
         # 응답 생성
         response_data = create_user_response(user)
-        response_data['success'] = True  # 중요: 프론트엔드가 기대하는 success 필드
         logger.info(f"User logged in successfully: {user.username}")
         
         return Response(response_data, status=status.HTTP_200_OK)
@@ -142,7 +120,6 @@ def login(request):
     except Exception as e:
         logger.error(f"Login error: {str(e)}")
         return Response({
-            'success': False,
             'error': '로그인 중 오류가 발생했습니다.'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -154,16 +131,17 @@ def logout(request):
     사용자 로그아웃
     """
     try:
+        # 현재는 클라이언트에서 토큰을 삭제하는 방식
+        # 추후 토큰 블랙리스트 기능 추가 가능
+        
         logger.info(f"User logged out: {request.user.username}")
         return Response({
-            'success': True,
             'message': '로그아웃되었습니다.'
         }, status=status.HTTP_200_OK)
         
     except Exception as e:
         logger.error(f"Logout error: {str(e)}")
         return Response({
-            'success': False,
             'error': '로그아웃 중 오류가 발생했습니다.'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -177,14 +155,12 @@ def get_user(request):
     try:
         user_data = UserSerializer(request.user).data
         return Response({
-            'success': True,
             'user': user_data,
             'isAuthenticated': True
         })
     except Exception as e:
         logger.error(f"Get user error: {str(e)}")
         return Response({
-            'success': False,
             'error': '사용자 정보 조회 중 오류가 발생했습니다.'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -204,7 +180,6 @@ def update_user(request):
             # 이메일 중복 검사
             if User.objects.filter(email=data['email']).exclude(id=user.id).exists():
                 return Response({
-                    'success': False,
                     'error': '이미 사용중인 이메일입니다.'
                 }, status=status.HTTP_400_BAD_REQUEST)
             user.email = data['email']
@@ -235,7 +210,6 @@ def update_user(request):
         user_data = UserSerializer(user).data
         
         return Response({
-            'success': True,
             'user': user_data,
             'message': '정보가 업데이트되었습니다.'
         })
@@ -243,7 +217,6 @@ def update_user(request):
     except Exception as e:
         logger.error(f"Update user error: {str(e)}")
         return Response({
-            'success': False,
             'error': '사용자 정보 업데이트 중 오류가 발생했습니다.'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -260,7 +233,6 @@ def refresh_token(request):
         refresh = request.data.get('refresh')
         if not refresh:
             return Response({
-                'success': False,
                 'error': 'Refresh token이 필요합니다.'
             }, status=status.HTTP_400_BAD_REQUEST)
         
@@ -268,7 +240,6 @@ def refresh_token(request):
         token = RefreshToken(refresh)
         
         return Response({
-            'success': True,
             'access': str(token.access_token),
             'refresh': str(token)
         })
@@ -276,6 +247,8 @@ def refresh_token(request):
     except Exception as e:
         logger.error(f"Token refresh error: {str(e)}")
         return Response({
-            'success': False,
             'error': '토큰 갱신 중 오류가 발생했습니다.'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# Guest login removed - authentication required for all features
