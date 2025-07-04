@@ -1,5 +1,5 @@
 """
-인증 관련 뷰 - 로그인 문제 해결 버전 (디버깅 강화)
+인증 관련 뷰 - 로그인 문제 해결 버전 (username/email 자동 감지)
 """
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -11,6 +11,7 @@ from django.db import transaction
 from .jwt_auth import create_user_response, authenticate_user, get_tokens_for_user
 from .serializers import UserSerializer
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -91,11 +92,17 @@ def register(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+def is_email(text):
+    """이메일 형식인지 확인"""
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(email_pattern, text) is not None
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login(request):
     """
-    사용자 로그인 - 강화된 디버깅 버전
+    사용자 로그인 - username/email 자동 감지 버전
     """
     try:
         data = request.data
@@ -122,7 +129,15 @@ def login(request):
                 'error': '사용자명 또는 이메일을 입력해주세요.'
             }, status=status.HTTP_400_BAD_REQUEST)
         
+        # === 스마트 이메일/사용자명 감지 ===
+        # username 필드에 이메일이 들어온 경우 자동으로 이메일로 처리
+        if username and is_email(username) and not email:
+            logger.info(f"Detected email in username field: {username}")
+            email = username
+            username = None
+        
         # === 강화된 디버깅 섹션 ===
+        logger.info(f"After auto-detection - username: {username}, email: {email}")
         logger.info(f"Password length: {len(password)}")
         logger.info(f"Password starts with: {password[:3]}..." if len(password) > 3 else f"Password: {password}")
         
@@ -168,11 +183,6 @@ def login(request):
         auth_user = authenticate(username=target_user.username, password=password)
         logger.info(f"Django authenticate result: {auth_user}")
         logger.info(f"Django authenticate success: {auth_user is not None}")
-        
-        # 5. 우리의 authenticate_user 함수 테스트
-        custom_auth_user = authenticate_user(username=target_user.username, email=target_user.email, password=password)
-        logger.info(f"Custom authenticate_user result: {custom_auth_user}")
-        logger.info(f"Custom authenticate success: {custom_auth_user is not None}")
         
         # 실제 인증 결과 결정
         if password_valid and target_user.is_active:
