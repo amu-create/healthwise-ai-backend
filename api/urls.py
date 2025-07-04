@@ -25,16 +25,14 @@ urlpatterns = [
     path('auth/user/', views_auth.get_user, name='auth_user'),
     path('auth/user/update/', views_auth.update_user, name='auth_user_update'),
     path('auth/refresh/', views_auth.refresh_token, name='auth_refresh'),
-    path('auth/guest/', views_auth.guest_login, name='auth_guest'),
+    # Guest login removed - authentication required
     
     # Supabase 인증 API
     path('auth/supabase/', views_supabase_auth.supabase_auth, name='supabase_auth'),
     path('auth/supabase/register/', views_supabase_auth.supabase_register, name='supabase_register'),
-    path('auth/supabase/login/', views_supabase_auth.supabase_login, name='supabase_login'),
     
     # 기존 엔드포인트 유지 (하위 호환성)
     path('test/', views.test_api, name='test_api'),
-    path('guest/profile/', views.guest_profile, name='guest_profile'),
     path('auth/csrf/', views.auth_csrf, name='auth_csrf'),
     
     # Health check endpoints
@@ -44,12 +42,7 @@ urlpatterns = [
     # 건강 선택지 API
     path('health/options/', views.health_options, name='health_options'),
     
-    # Guest endpoints
-    path('guest/fitness-profile/', views.guest_fitness_profile, name='guest_fitness_profile'),
-    path('guest/daily-nutrition/<str:date>/', views.guest_daily_nutrition, name='guest_daily_nutrition'),
-    path('guest/nutrition-statistics/', views.guest_nutrition_statistics, name='guest_nutrition_statistics'),
-    path('guest/workout-logs/', views.guest_workout_logs, name='guest_workout_logs'),
-    path('guest/recommendations/daily/', views.guest_recommendations_daily, name='guest_recommendations_daily'),
+    # Guest endpoints removed - authentication required for all features
     
     # 🏋️ 운동 관련 API
     path('exercises/', views.exercise_list, name='exercise_list'),

@@ -251,36 +251,4 @@ def refresh_token(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def guest_login(request):
-    """
-    게스트 로그인
-    """
-    try:
-        guest_id = request.data.get('guest_id')
-        if not guest_id:
-            return Response({
-                'error': '게스트 ID가 필요합니다.'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # 게스트 정보 반환
-        return Response({
-            'guest_id': guest_id,
-            'isGuest': True,
-            'user': {
-                'id': None,
-                'username': f'guest_{guest_id[:8]}',
-                'email': '',
-                'profile': {
-                    'fitness_level': 'beginner',
-                    'fitness_goals': []
-                }
-            }
-        })
-        
-    except Exception as e:
-        logger.error(f"Guest login error: {str(e)}")
-        return Response({
-            'error': '게스트 로그인 중 오류가 발생했습니다.'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+# Guest login removed - authentication required for all features
