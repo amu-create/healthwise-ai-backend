@@ -4,6 +4,7 @@ from . import views
 from . import views_nutrition
 from . import views_auth
 from . import views_supabase_auth
+from . import views_debug
 from .views_modules.nutrition_summary import nutrition_summary
 from .views_modules.workout_db import workout_logs_db, workout_logs_create_db
 from .views_modules.social_endpoints import (
@@ -18,6 +19,11 @@ from .views_modules.social_endpoints import (
 router = DefaultRouter()
 
 urlpatterns = [
+    # 디버깅 엔드포인트 (개발용)
+    path('debug/create-user/', views_debug.debug_create_user, name='debug_create_user'),
+    path('debug/test-auth/', views_debug.debug_test_auth, name='debug_test_auth'),
+    path('debug/reset-password/', views_debug.debug_reset_password, name='debug_reset_password'),
+    
     # 인증 관련 API (JWT 기반)
     path('auth/register/', views_auth.register, name='auth_register'),
     path('auth/login/', views_auth.login, name='auth_login'),
