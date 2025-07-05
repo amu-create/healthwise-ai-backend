@@ -1,9 +1,15 @@
 #!/bin/bash
 # Railway 환경변수 대기 및 최적화된 시작 스크립트
 
+echo "======================================"
+echo "Railway Deployment Script v2.0"
+echo "Time: $(date)"
+echo "======================================"
+
 echo "Starting Railway deployment script..."
 echo "Python version: $(python --version)"
 echo "Port: $PORT"
+echo "Railway environment: $RAILWAY_ENVIRONMENT"
 
 # 환경변수 확인
 echo "Checking environment variables..."

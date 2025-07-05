@@ -217,15 +217,30 @@ def generate_routine_with_ai(selected_exercises, muscle_group, level, duration, 
 def save_routine_to_db(request, routine_data, muscle_group, level, duration):
     """루틴을 DB에 저장"""
     try:
+        logger.info(f"Attempting to save routine for user: {request.user.id} ({request.user.username})")
+        
+        # difficulty 변환 (한글 -> 영어)
+        difficulty_map = {
+            '초급': 'beginner',
+            '중급': 'intermediate', 
+            '상급': 'advanced',
+            'beginner': 'beginner',
+            'intermediate': 'intermediate',
+            'advanced': 'advanced'
+        }
+        difficulty_english = difficulty_map.get(level, 'intermediate')
+        
         # WorkoutRoutine 생성
         saved_routine = WorkoutRoutine.objects.create(
             user=request.user,
             name=routine_data.get('routine_name', f'{muscle_group} {level} 루틴'),
             description=f"AI가 생성한 {muscle_group} 운동 루틴 ({level})",
-            total_duration=routine_data.get('total_duration', duration),
-            difficulty=level,
+            total_duration=safe_duration_convert(routine_data.get('total_duration', duration)),
+            difficulty=difficulty_english,
             is_public=False
         )
+        
+        logger.info(f"Created WorkoutRoutine with ID: {saved_routine.id}")
         
         # 각 운동을 RoutineExercise로 저장
         for idx, exercise_data in enumerate(routine_data.get('exercises', [])):
@@ -233,6 +248,14 @@ def save_routine_to_db(request, routine_data, muscle_group, level, duration):
             
             # 유효한 운동인지 확인
             if exercise_name in VALID_EXERCISES_WITH_GIF:
+                # difficulty 변환
+                if level == '초급':
+                    difficulty = 'easy'
+                elif level == '중급':
+                    difficulty = 'medium'
+                else:
+                    difficulty = 'hard'
+                
                 # Exercise 찾기 또는 생성
                 exercise, created = Exercise.objects.get_or_create(
                     name=exercise_name,
@@ -242,26 +265,35 @@ def save_routine_to_db(request, routine_data, muscle_group, level, duration):
                         'instructions': exercise_data.get('notes', '정확한 자세로 천천히 수행하세요'),
                         'duration': 5,  # 기본값
                         'calories_per_minute': 8.0,
-                        'difficulty': 'easy' if level == '초급' else ('medium' if level == '중급' else 'hard'),
+                        'difficulty': difficulty,
                         'muscle_groups': [muscle_group]
                     }
                 )
                 
+                if created:
+                    logger.info(f"Created new Exercise: {exercise_name}")
+                
+                # duration과 rest_time 안전하게 변환
+                duration_value = safe_duration_convert(exercise_data.get('duration', 5))
+                rest_time_value = safe_duration_convert(exercise_data.get('rest_seconds', 60))
+                
                 # RoutineExercise 생성
-                RoutineExercise.objects.create(
+                routine_exercise = RoutineExercise.objects.create(
                     routine=saved_routine,
                     exercise=exercise,
-                    sets=exercise_data.get('sets', 3),
-                    reps=exercise_data.get('reps', 12),
-                    rest_time=exercise_data.get('rest_seconds', 60),
+                    sets=int(exercise_data.get('sets', 3)),
+                    reps=int(exercise_data.get('reps', 12)),
+                    duration=duration_value,
+                    rest_time=rest_time_value,
                     order=idx
                 )
+                logger.info(f"Created RoutineExercise: {exercise_name} for routine {saved_routine.id}")
         
-        logger.info(f"AI 루틴 DB 저장 완료: {saved_routine.id}")
+        logger.info(f"AI 루틴 DB 저장 완료: {saved_routine.id} with {saved_routine.exercises.count()} exercises")
         return saved_routine
         
     except Exception as e:
-        logger.error(f"AI 루틴 DB 저장 실패: {str(e)}")
+        logger.error(f"AI 루틴 DB 저장 실패: {str(e)}", exc_info=True)
         return None
 
 
