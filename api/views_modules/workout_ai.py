@@ -219,6 +219,9 @@ def save_routine_to_db(request, routine_data, muscle_group, level, duration):
     try:
         logger.info(f"Attempting to save routine for user: {request.user.id} ({request.user.username})")
         
+        # import 추가
+        from .workout_utils import safe_duration_convert
+        
         # difficulty 변환 (한글 -> 영어)
         difficulty_map = {
             '초급': 'beginner',

@@ -131,6 +131,13 @@ def workout_logs_create(request):
                 'error': 'routine_id is required'
             }, status=status.HTTP_400_BAD_REQUEST)
         
+        # 게스트 사용자 체크
+        if not request.user.is_authenticated:
+            return Response({
+                'error': '게스트 사용자는 운동 기록을 저장할 수 없습니다.',
+                'message': '회원가입 후 이용해주세요.'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
         # duration 값 안전 변환
         duration = safe_duration_convert(data.get('duration', 30))
         
@@ -139,38 +146,45 @@ def workout_logs_create(request):
         calories_per_minute = INTENSITY_MULTIPLIER.get(intensity, 8)
         calories_burned = duration * calories_per_minute
         
-        # 운동 로그 생성
-        workout_log = {
-            'id': random.randint(1000, 9999),
+        # WorkoutLog 모델로 실제 DB 저장
+        from ..models import WorkoutLog
+        workout_log = WorkoutLog.objects.create(
+            user=request.user,
+            date=data.get('date', datetime.now().date()),
+            duration=duration,
+            calories_burned=calories_burned,
+            notes=data.get('notes', ''),
+            workout_name=data.get('routine_name', '운동 루틴'),
+            workout_type='gym',  # 기본값
+            sets=data.get('total_sets', None),
+            # AI 루틴 정보를 route_coordinates JSON 필드에 저장
+            route_coordinates={'routine_id': str(data.get('routine_id', ''))},
+        )
+        
+        logger.info(f"WorkoutLog created with id: {workout_log.id}")
+        
+        # 응답용 데이터
+        response_data = {
+            'id': workout_log.id,
             'routine_id': data.get('routine_id'),
-            'routine_name': data.get('routine_name', '운동 루틴'),
-            'exercise_name': data.get('routine_name', '운동 루틴'),  # 대시보드용 필드 추가
-            'user_id': request.user.id if request.user.is_authenticated else 'guest',
-            'date': data.get('date', datetime.now().strftime('%Y-%m-%d')),
-            'duration': duration,
-            'calories_burned': calories_burned,
-            'notes': data.get('notes', ''),
+            'routine_name': workout_log.workout_name,
+            'exercise_name': workout_log.workout_name,
+            'user_id': request.user.id,
+            'date': workout_log.date.strftime('%Y-%m-%d'),
+            'duration': workout_log.duration,
+            'calories_burned': workout_log.calories_burned,
+            'notes': workout_log.notes,
             'intensity': intensity,
-            'created_at': datetime.now().isoformat(),
-            'is_guest': not request.user.is_authenticated,
+            'created_at': workout_log.created_at.isoformat(),
             'exercises_completed': data.get('exercises_completed', 0),
             'total_sets': data.get('total_sets', 0)
         }
-        
-        # 실제 DB 저장 로직 (Django 모델 사용 시)
-        # if request.user.is_authenticated:
-        #     WorkoutLog.objects.create(**workout_log)
-        
-        # 세션에 저장 (임시 저장소)
-        if not hasattr(request.session, '_workout_logs'):
-            request.session._workout_logs = []
-        request.session._workout_logs.append(workout_log)
         
         # 소셜 공유 처리
         share_to_social = data.get('share_to_social', False)
         social_post = None
         
-        if share_to_social and request.user.is_authenticated:  # 게스트는 소셜 공유 불가
+        if share_to_social:
             try:
                 user_id = request.user.id
                 content = data.get('social_content', f'{duration}분 동안 운동을 완료했습니다! 💪')
@@ -178,24 +192,20 @@ def workout_logs_create(request):
                 # 소셜 포스트 생성
                 social_post = social_workout_service.create_workout_post(
                     user_id=user_id,
-                    workout_log_id=workout_log['id'],
+                    workout_log_id=workout_log.id,
                     content=content
                 )
             except Exception as social_error:
                 logger.warning(f'Social post creation failed: {str(social_error)}')
-                # 소셜 포스트 실패해도 워크아웃 로그는 성공 처리
                 social_post = None
         
-        # 응답 데이터
-        response_data = {
-            'workout_log': workout_log,
+        return Response({
+            'workout_log': response_data,
             'social_post': social_post
-        }
-        
-        return Response(response_data, status=status.HTTP_201_CREATED)
+        }, status=status.HTTP_201_CREATED)
         
     except Exception as e:
-        logger.error(f'Workout log create error: {str(e)}')
+        logger.error(f'Workout log create error: {str(e)}', exc_info=True)
         return Response({
             'error': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
