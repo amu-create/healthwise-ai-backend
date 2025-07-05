@@ -133,8 +133,49 @@ def workout_logs_create_db(request):
                 'error': 'routine_id is required'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # duration 값 확인 및 정수로 변환
-        duration = int(data.get('duration', 30))
+        # duration 값 확인 및 안전한 정수 변환
+        try:
+            duration_value = data.get('duration', 30)
+            logger.info(f"Received duration value: {duration_value} (type: {type(duration_value)})")
+            
+            # None, 빈 문자열, undefined 등 처리
+            if duration_value is None or duration_value == '' or duration_value == 'undefined' or duration_value == 'null':
+                duration = 30
+                logger.info("Duration is None/empty, using default 30")
+            elif isinstance(duration_value, str):
+                # 문자열인 경우 숫자만 추출하여 변환
+                import re
+                numeric_str = re.sub(r'[^\d.]', '', str(duration_value))
+                if numeric_str:
+                    try:
+                        duration = int(float(numeric_str))
+                    except (ValueError, OverflowError):
+                        duration = 30
+                else:
+                    duration = 30
+                logger.info(f"Converted string duration: {duration_value} -> {duration}")
+            else:
+                # 숫자인 경우 NaN 체크 후 변환
+                try:
+                    # NaN 체크 (NaN != NaN은 True)
+                    if duration_value != duration_value:  # NaN 체크
+                        duration = 30
+                        logger.info("Duration is NaN, using default 30")
+                    else:
+                        duration = int(float(duration_value))
+                        logger.info(f"Converted numeric duration: {duration_value} -> {duration}")
+                except (ValueError, TypeError, OverflowError):
+                    duration = 30
+                    logger.info(f"Failed to convert numeric duration: {duration_value}, using default 30")
+            
+            # 유효 범위 검증 (1분~300분)
+            if duration < 1 or duration > 300:
+                logger.warning(f"Duration {duration} out of range, using default 30")
+                duration = 30
+                
+        except Exception as e:
+            logger.warning(f"Exception in duration conversion: {data.get('duration')}, using default 30. Error: {str(e)}")
+            duration = 30
         
         # 칼로리 계산 (운동 강도에 따라 다르게 계산)
         intensity_multiplier = {
