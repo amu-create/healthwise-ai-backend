@@ -18,7 +18,7 @@ def get_supabase_database_config():
     database_url = os.environ.get('SUPABASE_DATABASE_URL') or SUPABASE_DATABASE_URL
     
     # Railway의 자동 DATABASE_URL 무시하고 강제로 Supabase 사용
-    print(f"🔗 Using Supabase database: {database_url[:50]}...")
+    print(f"Using Supabase database: {database_url[:50]}...")
     
     config = dj_database_url.config(
         default=database_url,
