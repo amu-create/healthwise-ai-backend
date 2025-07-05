@@ -136,6 +136,10 @@ def login(request):
             email = username
             username = None
         
+        # email 필드로만 전달된 경우 (프론트엔드가 이렇게 보냄)
+        if email and not username:
+            logger.info(f"Using email field for login: {email}")
+        
         # === 강화된 디버깅 섹션 ===
         logger.info(f"After auto-detection - username: {username}, email: {email}")
         logger.info(f"Password length: {len(password)}")
