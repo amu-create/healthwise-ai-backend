@@ -55,7 +55,7 @@ class HealthAIChatbot:
                 # OpenAI 클라이언트 생성 (기본 설정 사용)
                 self.client = OpenAI(
                     api_key=api_key,
-                    timeout=30.0,  # 타임아웃 설정
+                    timeout=15.0,  # 타임아웃 15초로 단축
                     max_retries=1  # 재시도 횟수 설정
                 )
                 

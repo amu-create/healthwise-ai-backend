@@ -132,101 +132,57 @@ def select_exercises_for_routine(muscle_group, level, duration, equipment_availa
 def generate_routine_with_ai(selected_exercises, muscle_group, level, duration, equipment_available):
     """AI를 사용한 루틴 생성"""
     try:
-        chatbot = get_chatbot()
-        exercises_list = ", ".join(selected_exercises)
+        # 빠른 응답을 위해 AI 호출을 스킵하고 바로 기본 루틴 생성
+        logger.info("Generating routine with predefined template for faster response")
+        logger.info(f"Selected exercises: {', '.join(selected_exercises)}")
         
-        prompt = f"""
-        운동 루틴을 생성해주세요.
-        - 운동 대상 부위: {muscle_group}
-        - 운동 난이도: {level}
-        - 운동 시간: {duration}분
-        - 장비 사용 가능: {'예' if equipment_available else '아니오'}
-        - 사용 가능한 운동: {exercises_list}
-        
-        각 운동마다 세트, 반복 횟수, 휴식 시간을 포함해서 알려주세요.
-        난이도에 맞게 세트수와 반복수를 조절하세요:
-        - 초급: 3세트, 10-12회
-        - 중급: 3-4세트, 8-12회
-        - 상급: 4-5세트, 6-10회
-        
-        JSON 형식으로 답변해주세요:
-        {{
-            "routine_name": "루틴 이름",
-            "exercises": [
-                {{
-                    "name": "운동 이름",
-                    "sets": 세트 수,
-                    "reps": 반복 횟수,
-                    "rest_seconds": 휴식 시간(초),
-                    "notes": "수행 팁"
-                }}
-            ],
-            "total_duration": 예상 시간
-        }}
-        """
-        
-        logger.info("Calling AI chatbot for workout generation...")
-        logger.info(f"Selected exercises: {exercises_list}")
-        
-        # AI 응답 받기
-        response = chatbot.get_health_consultation(
-            user_data={'user_id': 'ai_workout'},
-            question=prompt
-        )
-        
-        logger.info(f"AI response received: success={response.get('success', False)}")
-        
-        # 응답 성공 여부 확인
-        if not response.get('success', False):
-            error_msg = response.get('error', 'Unknown error')
-            logger.warning(f"AI response failed: {error_msg}")
-            raise ValueError(f"AI response failed: {error_msg}")
-        
-        # JSON 파싱 시도
-        content = response.get('response', '')
-        logger.info(f"AI response content length: {len(content)}")
-        
-        if '```json' in content:
-            content = content.split('```json')[1].split('```')[0].strip()
-        elif '```' in content:
-            content = content.split('```')[1].split('```')[0].strip()
-        
-        try:
-            routine_data = json.loads(content)
-            logger.info("Successfully parsed AI response JSON")
-            return routine_data
-        except json.JSONDecodeError as je:
-            logger.error(f"JSON parsing failed: {str(je)}")
-            logger.error(f"Content to parse: {content[:500]}...")
-            raise
-        
-    except Exception as e:
-        logger.error(f"AI routine generation failed: {str(e)}", exc_info=True)
-        logger.info("Using fallback routine")
-        
-        # AI 실패 시 기본 루틴 생성
+        # 기본 루틴 생성
         routine_data = {
             "routine_name": f"{muscle_group} {level} 루틴",
             "exercises": [],
             "total_duration": duration
         }
         
-        # 기본 세트/반복수 설정
+        # 난이도별 세트/반복수 설정
         if level == "초급":
             sets, reps = 3, 12
-        else:  # 중급
+            rest = 60
+        elif level == "중급":
             sets, reps = 3, 10
+            rest = 75
+        else:  # 상급
+            sets, reps = 4, 8
+            rest = 90
         
+        # 각 운동에 대한 상세 정보 추가
         for exercise_name in selected_exercises:
             routine_data["exercises"].append({
                 "name": exercise_name,
                 "sets": sets,
                 "reps": reps,
-                "rest_seconds": 60 if level == "초급" else 75,
+                "rest_seconds": rest,
                 "notes": "정확한 자세로 천천히 수행하세요"
             })
         
+        logger.info("Routine generated successfully without AI call")
         return routine_data
+        
+    except Exception as e:
+        logger.error(f"Routine generation failed: {str(e)}", exc_info=True)
+        # 오류 시에도 기본 루틴 반환
+        return {
+            "routine_name": f"{muscle_group} 기본 루틴",
+            "exercises": [
+                {
+                    "name": exercise_name,
+                    "sets": 3,
+                    "reps": 10,
+                    "rest_seconds": 60,
+                    "notes": "정확한 자세로 수행하세요"
+                } for exercise_name in selected_exercises[:3]  # 최대 3개만
+            ],
+            "total_duration": duration
+        }
 
 
 def save_routine_to_db(request, routine_data, muscle_group, level, duration):
@@ -402,6 +358,7 @@ def ai_workout(request):
                 'is_guest': False,
                 'is_saved': True
             }
+            logger.info(f"Routine object created with {len(exercises_with_details)} exercises")
         else:
             # 게스트이거나 저장 실패시 임시 ID 사용
             routine = {
@@ -429,6 +386,7 @@ def ai_workout(request):
                 'limited_features': ['초급, 중급 운동만 이용 가능', '최대 4개 운동까지 추천']
             }
         
+        logger.info(f"Returning response with routine ID: {routine['id']}")
         return Response(response_data)
         
     except Exception as e:
