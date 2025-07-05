@@ -9,7 +9,7 @@ from ..services.data import EXERCISE_DATA, ROUTINE_DATA
 from ..services.youtube_service import get_workout_videos
 from ..services.social_workout_service import social_workout_service
 from ..ai_service import get_chatbot
-from ..models import WorkoutLog, WorkoutSession
+from ..models import WorkoutLog, WorkoutSession, WorkoutRoutine, Exercise, RoutineExercise
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -37,8 +37,63 @@ def exercise_list(request):
 def workout_routines(request):
     if request.method == 'OPTIONS':
         return Response(status=status.HTTP_200_OK)
+    
+    # 기본 루틴 데이터
+    routines = ROUTINE_DATA.copy()
+    
+    # 로그인 사용자의 경우 DB에서 저장된 루틴도 가져오기
+    if request.user.is_authenticated:
+        try:
+            # 사용자의 루틴 가져오기
+            user_routines = WorkoutRoutine.objects.filter(
+                user=request.user
+            ).prefetch_related('exercises', 'routineexercise_set').order_by('-created_at')
+            
+            # DB 루틴을 프론트엔드 형식으로 변환
+            for routine in user_routines:
+                routine_exercises = []
+                
+                # RoutineExercise를 통해 운동 정보 가져오기
+                for re in routine.routineexercise_set.all().order_by('order'):
+                    exercise = re.exercise
+                    routine_exercises.append({
+                        'id': exercise.id,
+                        'name': exercise.name,
+                        'sets': re.sets,
+                        'reps': re.reps,
+                        'duration': re.duration,
+                        'rest_time': re.rest_time,
+                        'category': exercise.category,
+                        'difficulty': exercise.difficulty,
+                        'description': exercise.description,
+                        'gif_url': f'/static/images/exercises/{exercise.name.lower().replace(" ", "_")}.gif',
+                        'order': re.order
+                    })
+                
+                # 루틴 객체 생성
+                routine_data = {
+                    'id': routine.id,
+                    'name': routine.name,
+                    'description': routine.description,
+                    'level': routine.difficulty,
+                    'total_duration': routine.total_duration,
+                    'exercises': routine_exercises,
+                    'created_at': routine.created_at.isoformat(),
+                    'updated_at': routine.updated_at.isoformat(),
+                    'is_ai_generated': True,
+                    'is_custom': True
+                }
+                
+                # 사용자 루틴을 목록 앞에 추가
+                routines.insert(0, routine_data)
+                
+            logger.info(f"Found {len(user_routines)} saved routines for user {request.user.id}")
+            
+        except Exception as e:
+            logger.error(f"Error loading user routines: {str(e)}")
+    
     # 프론트엔드가 배열을 기대하므로 배열로 반환
-    return Response(ROUTINE_DATA)
+    return Response(routines)
 
 @api_view(['GET', 'OPTIONS'])
 @permission_classes([AllowAny])
@@ -113,8 +168,49 @@ def workout_logs(request):
                     'error': 'routine_id is required'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            # duration을 정수로 변환
-            duration = int(data.get('duration', 30))
+            # duration 값 확인 및 안전한 정수 변환 (첫 번째) - 완전 개선 버전
+            try:
+                duration_value = data.get('duration', 30)
+                logger.info(f"Received duration value: {duration_value} (type: {type(duration_value)})")
+                
+                # None, 빈 문자열, undefined 등 처리
+                if duration_value is None or duration_value == '' or duration_value == 'undefined' or duration_value == 'null':
+                    duration = 30
+                    logger.info("Duration is None/empty, using default 30")
+                elif isinstance(duration_value, str):
+                    # 문자열인 경우 숫자만 추출하여 변환
+                    import re
+                    numeric_str = re.sub(r'[^\d.]', '', str(duration_value))
+                    if numeric_str:
+                        try:
+                            duration = int(float(numeric_str))
+                        except (ValueError, OverflowError):
+                            duration = 30
+                    else:
+                        duration = 30
+                    logger.info(f"Converted string duration: {duration_value} -> {duration}")
+                else:
+                    # 숫자인 경우 NaN 체크 후 변환
+                    try:
+                        # NaN 체크 (NaN != NaN은 True)
+                        if duration_value != duration_value:  # NaN 체크
+                            duration = 30
+                            logger.info("Duration is NaN, using default 30")
+                        else:
+                            duration = int(float(duration_value))
+                            logger.info(f"Converted numeric duration: {duration_value} -> {duration}")
+                    except (ValueError, TypeError, OverflowError):
+                        duration = 30
+                        logger.info(f"Failed to convert numeric duration: {duration_value}, using default 30")
+                
+                # 유효 범위 검증 (1분~300분)
+                if duration < 1 or duration > 300:
+                    logger.warning(f"Duration {duration} out of range, using default 30")
+                    duration = 30
+                    
+            except Exception as e:
+                logger.warning(f"Exception in duration conversion: {data.get('duration')}, using default 30. Error: {str(e)}")
+                duration = 30
             
             # 운동 로그 생성
             workout_log = {
@@ -137,6 +233,7 @@ def workout_logs(request):
             return Response(workout_log, status=status.HTTP_201_CREATED)
             
         except Exception as e:
+            logger.error(f'Workout log creation error: {str(e)}')
             return Response({
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -181,6 +278,7 @@ def workout_logs_create(request):
     
     try:
         data = request.data
+        logger.info(f"Workout log create request data: {data}")
         
         # 필수 필드 검증
         if not data.get('routine_id'):
@@ -188,8 +286,49 @@ def workout_logs_create(request):
                 'error': 'routine_id is required'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # duration 값 확인 및 정수로 변환
-        duration = int(data.get('duration', 30))
+        # duration 값 확인 및 안전한 정수 변환 (두 번째) - 완전 개선 버전
+        try:
+            duration_value = data.get('duration', 30)
+            logger.info(f"Received duration value: {duration_value} (type: {type(duration_value)})")
+            
+            # None, 빈 문자열, undefined 등 처리
+            if duration_value is None or duration_value == '' or duration_value == 'undefined' or duration_value == 'null':
+                duration = 30
+                logger.info("Duration is None/empty, using default 30")
+            elif isinstance(duration_value, str):
+                # 문자열인 경우 숫자만 추출하여 변환
+                import re
+                numeric_str = re.sub(r'[^\d.]', '', str(duration_value))
+                if numeric_str:
+                    try:
+                        duration = int(float(numeric_str))
+                    except (ValueError, OverflowError):
+                        duration = 30
+                else:
+                    duration = 30
+                logger.info(f"Converted string duration: {duration_value} -> {duration}")
+            else:
+                # 숫자인 경우 NaN 체크 후 변환
+                try:
+                    # NaN 체크 (NaN != NaN은 True)
+                    if duration_value != duration_value:  # NaN 체크
+                        duration = 30
+                        logger.info("Duration is NaN, using default 30")
+                    else:
+                        duration = int(float(duration_value))
+                        logger.info(f"Converted numeric duration: {duration_value} -> {duration}")
+                except (ValueError, TypeError, OverflowError):
+                    duration = 30
+                    logger.info(f"Failed to convert numeric duration: {duration_value}, using default 30")
+            
+            # 유효 범위 검증 (1분~300분)
+            if duration < 1 or duration > 300:
+                logger.warning(f"Duration {duration} out of range, using default 30")
+                duration = 30
+                
+        except Exception as e:
+            logger.warning(f"Exception in duration conversion: {data.get('duration')}, using default 30. Error: {str(e)}")
+            duration = 30
         
         # 칼로리 계산 (운동 강도에 따라 다르게 계산)
         intensity_multiplier = {
@@ -233,15 +372,20 @@ def workout_logs_create(request):
         social_post = None
         
         if share_to_social and request.user.is_authenticated:  # 게스트는 소셜 공유 불가
-            user_id = request.user.id
-            content = data.get('social_content', f'{duration}분 동안 운동을 완료했습니다! 💪')
-            
-            # 소셜 포스트 생성
-            social_post = social_workout_service.create_workout_post(
-                user_id=user_id,
-                workout_log_id=workout_log['id'],
-                content=content
-            )
+            try:
+                user_id = request.user.id
+                content = data.get('social_content', f'{duration}분 동안 운동을 완료했습니다! 💪')
+                
+                # 소셜 포스트 생성
+                social_post = social_workout_service.create_workout_post(
+                    user_id=user_id,
+                    workout_log_id=workout_log['id'],
+                    content=content
+                )
+            except Exception as social_error:
+                logger.warning(f'Social post creation failed: {str(social_error)}')
+                # 소셜 포스트 실패해도 워크아웃 로그는 성공 처리
+                social_post = None
         
         # 응답 데이터
         response_data = {
@@ -377,6 +521,8 @@ def ai_workout(request):
         return Response(status=status.HTTP_200_OK)
     
     try:
+        logger.info(f"AI workout request received: {request.data}")
+        
         data = request.data
         muscle_group = data.get('muscle_group', '전신')
         level = data.get('level', '초급')
@@ -490,10 +636,16 @@ def ai_workout(request):
         
         try:
             # AI 응답 받기
+            logger.info("Calling AI chatbot for workout generation...")
             response = chatbot.get_health_consultation(
                 user_data={'user_id': request.user.id if request.user.is_authenticated else 'guest'},
                 question=prompt
             )
+            
+            # 응답 성공 여부 확인
+            if not response.get('success', False):
+                logger.warning(f"AI response failed: {response.get('error', 'Unknown error')}")
+                raise ValueError(f"AI response failed: {response.get('error', 'Unknown error')}")
             
             # JSON 파싱 시도
             import json
@@ -505,11 +657,13 @@ def ai_workout(request):
             
             try:
                 routine_data = json.loads(content)
-            except:
+            except Exception as parse_error:
+                logger.warning(f"JSON parsing failed: {str(parse_error)}")
                 # JSON 파싱 실패 시 기본 루틴 생성
                 raise ValueError("JSON parsing failed")
                 
-        except:
+        except Exception as e:
+            logger.info(f"Using fallback routine due to: {str(e)}")
             # AI 실패 시 기본 루틴 생성
             routine_data = {
                 "routine_name": f"{muscle_group} {level} 루틴",
@@ -565,17 +719,85 @@ def ai_workout(request):
                 'notes': exercise_data.get('notes', '정확한 자세로 천천히 수행하세요')
             })
         
+        # DB에 루틴 저장 (로그인 사용자만)
+        saved_routine = None
+        if request.user.is_authenticated:
+            try:
+                # WorkoutRoutine 생성
+                saved_routine = WorkoutRoutine.objects.create(
+                    user=request.user,
+                    name=routine_data.get('routine_name', f'{muscle_group} {level} 루틴'),
+                    description=f"AI가 생성한 {muscle_group} 운동 루틴 ({level})",
+                    total_duration=routine_data.get('total_duration', duration),
+                    difficulty=level,
+                    is_public=False
+                )
+                
+                # 각 운동을 RoutineExercise로 저장
+                for idx, exercise_data in enumerate(routine_data.get('exercises', [])):
+                    exercise_name = exercise_data.get('name', '')
+                    
+                    # 유효한 운동인지 확인
+                    if exercise_name in VALID_EXERCISES_WITH_GIF:
+                        # Exercise 찾기 또는 생성
+                        exercise, created = Exercise.objects.get_or_create(
+                            name=exercise_name,
+                            defaults={
+                                'category': muscle_group,
+                                'description': f'{muscle_group} 운동',
+                                'instructions': exercise_data.get('notes', '정확한 자세로 천천히 수행하세요'),
+                                'duration': 5,  # 기본값
+                                'calories_per_minute': 8.0,
+                                'difficulty': 'easy' if level == '초급' else ('medium' if level == '중급' else 'hard'),
+                                'muscle_groups': [muscle_group]
+                            }
+                        )
+                        
+                        # RoutineExercise 생성
+                        RoutineExercise.objects.create(
+                            routine=saved_routine,
+                            exercise=exercise,
+                            sets=exercise_data.get('sets', 3),
+                            reps=exercise_data.get('reps', 12),
+                            rest_time=exercise_data.get('rest_seconds', 60),
+                            order=idx
+                        )
+                
+                logger.info(f"AI 루틴 DB 저장 완료: {saved_routine.id}")
+                
+            except Exception as e:
+                logger.error(f"AI 루틴 DB 저장 실패: {str(e)}")
+                saved_routine = None
+        
         # AI 생성 루틴 객체
-        routine = {
-            'id': random.randint(1000, 9999),  # 임시 ID
-            'name': routine_data['routine_name'],
-            'exercises': exercises_with_details,
-            'level': level,
-            'is_ai_generated': True,
-            'created_at': datetime.now().isoformat(),
-            'updated_at': datetime.now().isoformat(),
-            'is_guest': is_guest
-        }
+        if saved_routine:
+            # DB에 저장된 경우 실제 ID 사용
+            routine = {
+                'id': saved_routine.id,
+                'name': saved_routine.name,
+                'exercises': exercises_with_details,
+                'level': level,
+                'total_duration': saved_routine.total_duration,
+                'is_ai_generated': True,
+                'created_at': saved_routine.created_at.isoformat(),
+                'updated_at': saved_routine.updated_at.isoformat(),
+                'is_guest': False,
+                'is_saved': True
+            }
+        else:
+            # 게스트이거나 저장 실패시 임시 ID 사용
+            routine = {
+                'id': f'temp_{random.randint(1000, 9999)}',
+                'name': routine_data['routine_name'],
+                'exercises': exercises_with_details,
+                'level': level,
+                'total_duration': routine_data.get('total_duration', duration),
+                'is_ai_generated': True,
+                'created_at': datetime.now().isoformat(),
+                'updated_at': datetime.now().isoformat(),
+                'is_guest': is_guest,
+                'is_saved': False
+            }
         
         response_data = {
             'success': True,
@@ -592,8 +814,9 @@ def ai_workout(request):
         return Response(response_data)
         
     except Exception as e:
-        logger.error(f'AI workout error: {str(e)}')
+        logger.error(f'AI workout error: {str(e)}', exc_info=True)
         return Response({
             'success': False,
-            'error': f'AI workout error: {str(e)}'
+            'error': str(e),
+            'message': 'AI 운동 루틴 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
