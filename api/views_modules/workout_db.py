@@ -220,9 +220,21 @@ def workout_logs_create_db(request):
             }, status=status.HTTP_201_CREATED)
         
         # 인증된 사용자의 경우 실제 DB 저장
+        # date 필드 처리 - 문자열을 날짜 객체로 변환
+        date_str = data.get('date')
+        if date_str:
+            try:
+                # YYYY-MM-DD 형식의 문자열을 date 객체로 변환
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                logger.warning(f"Invalid date format: {date_str}, using today's date")
+                date_obj = timezone.now().date()
+        else:
+            date_obj = timezone.now().date()
+        
         workout_log_data = {
             'user': request.user,
-            'date': data.get('date', timezone.now().date()),
+            'date': date_obj,
             'duration': duration,
             'calories_burned': calories_burned,
             'notes': data.get('notes', ''),
