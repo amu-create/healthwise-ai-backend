@@ -22,24 +22,62 @@ def workout_logs(request):
         return Response(status=status.HTTP_200_OK)
     
     if request.method == 'GET':
-        # 기존 GET 로직
-        limit = int(request.GET.get('limit', 7))
-        logs = []
-        
-        for i in range(limit):
-            date = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
-            if random.random() > 0.3:
-                logs.append({
-                    'id': f'workout-{i}',
-                    'date': date,
-                    'type': random.choice(WORKOUT_TYPES),
-                    'duration': random.randint(30, 90),
-                    'calories_burned': random.randint(200, 500),
-                    'intensity': random.choice(['low', 'moderate', 'high']),
-                    'notes': f'Great {random.choice(WORKOUT_TYPES).lower()} session!'
-                })
-        
-        return Response({'count': len(logs), 'results': logs})
+        try:
+            # 실제 DB에서 데이터 가져오기
+            if request.user.is_authenticated:
+                from ..models import WorkoutLog
+                limit = int(request.GET.get('limit', 7))
+                
+                # 최근 운동 로그 가져오기
+                workout_logs = WorkoutLog.objects.filter(
+                    user=request.user
+                ).order_by('-date', '-created_at')[:limit]
+                
+                logs = []
+                for log in workout_logs:
+                    logs.append({
+                        'id': log.id,
+                        'date': log.date.strftime('%Y-%m-%d'),
+                        'type': log.workout_type,
+                        'workout_name': log.workout_name,
+                        'exercise_name': log.workout_name,  # 호환성을 위해 추가
+                        'duration': log.duration,
+                        'calories_burned': log.calories_burned,
+                        'intensity': 'moderate',  # 기본값
+                        'notes': log.notes,
+                        'created_at': log.created_at.isoformat(),
+                        'sets': log.sets,
+                        'reps': log.reps,
+                        'weight': log.weight,
+                    })
+                
+                return Response(logs)
+            else:
+                # 게스트용 더미 데이터
+                limit = int(request.GET.get('limit', 7))
+                logs = []
+                
+                for i in range(limit):
+                    date = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
+                    if random.random() > 0.3:
+                        logs.append({
+                            'id': f'workout-{i}',
+                            'date': date,
+                            'type': random.choice(WORKOUT_TYPES),
+                            'workout_name': f'{random.choice(WORKOUT_TYPES)} Session',
+                            'duration': random.randint(30, 90),
+                            'calories_burned': random.randint(200, 500),
+                            'intensity': random.choice(['low', 'moderate', 'high']),
+                            'notes': f'Great {random.choice(WORKOUT_TYPES).lower()} session!',
+                            'created_at': datetime.now().isoformat()
+                        })
+                
+                return Response(logs)
+                
+        except Exception as e:
+            logger.error(f'Workout logs GET error: {str(e)}', exc_info=True)
+            # 에러 발생 시 더미 데이터 반환
+            return Response([])
     
     elif request.method == 'POST':
         # 새로운 POST 로직 - 운동 완료 기록 생성
